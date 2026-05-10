@@ -1,5 +1,6 @@
 # macOS build
 mac/.build/
+.build/
 *.o
 *.d
 .DS_Store

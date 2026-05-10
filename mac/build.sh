@@ -1,18 +1,19 @@
 #!/bin/bash
 set -e
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SWIFT=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc
 SDK=$(ls -d /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX*.sdk 2>/dev/null | sort -V | tail -1)
-SRC=Sources/ClipNotice
+SRC="$DIR/Sources/ClipNotice"
 MODE=${1:-debug}
 
 case "$MODE" in
   release)
-    OUT=.build/release
+    OUT="$DIR/.build/release"
     OPT="-O"
     ;;
   debug|*)
-    OUT=.build/debug
+    OUT="$DIR/.build/debug"
     OPT=""
     ;;
 esac
