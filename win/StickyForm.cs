@@ -8,8 +8,8 @@ sealed class StickyForm : Form
 {
     const int MaxTextLength = 300;
     const int DismissMs = 3000;
-    const int Padding = 12;
-    const int Margin = 20;
+    const int Pad = 12;
+    const int Mar = 20;
     const int MaxWidth = 320;
 
     readonly Label _label;
@@ -27,7 +27,7 @@ sealed class StickyForm : Form
         {
             AutoSize = false,
             Dock = DockStyle.Fill,
-            Padding = new Padding(Padding),
+            Padding = new Padding(Pad),
         };
         Controls.Add(_label);
 
@@ -60,19 +60,19 @@ sealed class StickyForm : Form
                 ? new StringFormat { Trimming = StringTrimming.Word }
                 : new StringFormat { FormatFlags = StringFormatFlags.NoWrap };
             measured = g.MeasureString(display, _label.Font,
-                Settings.WordWrap ? MaxWidth - Padding * 2 : int.MaxValue, fmt);
+                Settings.WordWrap ? MaxWidth - Pad * 2 : int.MaxValue, fmt);
         }
 
         var w = Settings.WordWrap
             ? MaxWidth
-            : Math.Min((int)measured.Width + Padding * 2 + 4,
-                       Screen.PrimaryScreen!.WorkingArea.Width - Margin * 2);
-        var h = (int)measured.Height + Padding * 2 + 4;
+            : Math.Min((int)measured.Width + Pad * 2 + 4,
+                       Screen.PrimaryScreen!.WorkingArea.Width - Mar * 2);
+        var h = (int)measured.Height + Pad * 2 + 4;
 
         Size = new Size(Math.Max(w, 80), Math.Max(h, 40));
 
         var area = Screen.PrimaryScreen!.WorkingArea;
-        Location = new Point(area.Left + Margin, area.Top + Margin);
+        Location = new Point(area.Left + Mar, area.Top + Mar);
 
         _timer?.Stop();
         _timer?.Dispose();
