@@ -22,6 +22,11 @@ final class Settings {
         set { save(color: newValue, forKey: "backgroundColor") }
     }
 
+    var wordWrap: Bool {
+        get { defaults.object(forKey: "wordWrap") == nil ? true : defaults.bool(forKey: "wordWrap") }
+        set { defaults.set(newValue, forKey: "wordWrap") }
+    }
+
     private init() {}
 
     private func color(forKey key: String) -> NSColor? {
