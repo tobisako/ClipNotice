@@ -5,8 +5,12 @@
 コピーした瞬間、画面の隅に付箋が表示される。3秒で消える。
 Dockなし、メニューバーなし。確認のためにペーストする必要がなくなる。
 
+**特に便利な場面:** Google Remote Desktop など複数PC間でコピペを往復するとき、「どのPCにコピーが届いているか」が付箋で一目でわかる。
+
 > Differences from clipboard managers (Maccy, Clipy, Paste): ClipNotice stores **nothing**.
 > No history. No hotkeys. Passive ambient notification only.
+>
+> **Especially useful with remote desktop tools** (Google Remote Desktop, etc.): instantly confirm which machine received your clipboard content — no need to paste-and-check.
 
 ![Sticky note](docs/assets/sticky-note-bg.png)
 
