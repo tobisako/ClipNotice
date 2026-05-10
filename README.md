@@ -2,15 +2,19 @@
 
 **Clipboard copy notifier — macOS & Windows, ambient, zero-UI.**
 
-コピーした瞬間、画面の隅に付箋が表示される。3秒で消える。
-Dockなし、メニューバーなし。確認のためにペーストする必要がなくなる。
+コピーした瞬間、画面の隅に付箋がパッと出る。3秒で消える。それだけ。
+Dock もメニューバーも占領しない。コピーの確認にペーストする必要、もうなし。
 
-**特に便利な場面:** Google Remote Desktop など複数PC間でコピペを往復するとき、「どのPCにコピーが届いているか」が付箋で一目でわかる。
+**Remote Desktop ユーザーへ:**
+ネットワークが詰まっているとき、コピーが相手PCにちゃんと届いていないことがある——
+届いたと思ってペーストしたら空振り（特にPowerShellやiTerm2でコマンドをコピペしてるときのあのストレス！）。
+ClipNotice なら、どちらのPC画面に付箋が出たかで「届いた/届いてない」が一目でわかる。視覚的に解消。
 
 > Differences from clipboard managers (Maccy, Clipy, Paste): ClipNotice stores **nothing**.
 > No history. No hotkeys. Passive ambient notification only.
 >
-> **Especially useful with remote desktop tools** (Google Remote Desktop, etc.): instantly confirm which machine received your clipboard content — no need to paste-and-check.
+> **Remote desktop users:** on slow networks, clipboard sync sometimes fails silently.
+> ClipNotice shows instantly which machine received the copy — no more paste-and-hope.
 
 ![Sticky note](docs/assets/sticky-note-bg.png)
 
