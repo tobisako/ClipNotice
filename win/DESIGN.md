@@ -160,7 +160,7 @@ steps:
 - **同じ内容の連続コピー**: `_lastText == text` で skip
 - **空文字列コピー**: `string.IsNullOrEmpty` で skip
 - **画像・ファイルコピー**: `ContainsText()` が false → skip（テキスト以外は無視）
-- **アプリ起動直後のクリップボード**: 初回 Poll で現在の内容を 1 度表示する仕様（mac の changeCount スキップとは挙動が異なる）
+- **アプリ起動直後のクリップボード**: ctor で `Clipboard.GetText()` を `_lastText` に取り込み、起動時点の既存内容は表示しない（mac の changeCount スキップ初期化と等価）
 - **長文**: 300 文字超は冒頭 300 文字 + `…` で truncate
 - **大きいフォントでの末尾切れ**: `TextRenderer.MeasureText` (GDI) で Label 描画と同じレンダラを使い、右側に +12px 余白を取って glyph overhang を吸収
 

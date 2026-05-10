@@ -14,6 +14,16 @@ sealed class ClipboardMonitor : ApplicationContext
         Settings.Load();
         _sticky = new StickyForm();
 
+        try
+        {
+            if (Clipboard.ContainsText())
+                _lastText = Clipboard.GetText() ?? string.Empty;
+        }
+        catch
+        {
+            // Clipboard locked at startup — accept that the first poll may show it
+        }
+
         _pollTimer = new System.Windows.Forms.Timer { Interval = 500 };
         _pollTimer.Tick += Poll;
         _pollTimer.Start();
