@@ -110,7 +110,7 @@ final class StickyNotePanel: NSPanel {
 
     @objc private func openSettings() {
         SettingsPanel.shared.onChanged = { [weak self] in
-            self?.applySettings()
+            self?.show(text: "プレビュー Preview\nABC abc 123 あいう")
         }
         SettingsPanel.shared.open()
     }
