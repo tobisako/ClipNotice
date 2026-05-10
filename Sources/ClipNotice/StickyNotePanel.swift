@@ -88,7 +88,9 @@ final class StickyNotePanel: NSPanel {
         label.stringValue = display
         applySettings()
 
-        let lineCount = min(8, display.components(separatedBy: "\n").count + 1)
+        let lineCount = Settings.shared.wordWrap
+            ? min(8, display.components(separatedBy: "\n").count + 1)
+            : 1
         let lineHeight = Settings.shared.fontSize + 6
         let height = CGFloat(lineCount) * lineHeight + Self.padding * 2 + 4
         let size = NSSize(width: Self.panelWidth, height: max(50, height))
