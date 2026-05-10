@@ -8,6 +8,8 @@ Dockなし、メニューバーなし。確認のためにペーストする必�
 > Differences from clipboard managers (Maccy, Clipy, Paste): ClipNotice stores **nothing**.
 > No history. No hotkeys. Passive ambient notification only.
 
+![Sticky note](docs/assets/sticky-note-bg.png)
+
 ---
 
 ## Install
@@ -46,6 +48,8 @@ bash build.sh release
 ## Settings
 
 右クリック → **設定...** で変更可能（リアルタイムプレビュー付き）:
+
+![Settings panel](docs/assets/settings-panel.png)
 
 | 設定 | 内容 |
 |------|------|
