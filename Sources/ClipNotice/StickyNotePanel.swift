@@ -76,8 +76,8 @@ final class StickyNotePanel: NSPanel {
         backgroundColor = s.backgroundColor
         label.font = NSFont.systemFont(ofSize: s.fontSize)
         label.textColor = s.textColor
-        label.maximumNumberOfLines = s.wordWrap ? 0 : 1
-        label.lineBreakMode = s.wordWrap ? .byWordWrapping : .byTruncatingTail
+        label.maximumNumberOfLines = 0
+        label.lineBreakMode = s.wordWrap ? .byWordWrapping : .byClipping
     }
 
     func show(text: String) {
@@ -88,12 +88,24 @@ final class StickyNotePanel: NSPanel {
         label.stringValue = display
         applySettings()
 
-        let lineCount = Settings.shared.wordWrap
-            ? min(8, display.components(separatedBy: "\n").count + 1)
-            : 1
-        let lineHeight = Settings.shared.fontSize + 6
+        let s = Settings.shared
+        let lines = display.components(separatedBy: "\n")
+        let lineCount = min(8, lines.count)
+        let lineHeight = s.fontSize + 6
         let height = CGFloat(lineCount) * lineHeight + Self.padding * 2 + 4
-        let size = NSSize(width: Self.panelWidth, height: max(50, height))
+
+        let panelWidth: CGFloat
+        if s.wordWrap {
+            panelWidth = Self.panelWidth
+        } else {
+            let font = NSFont.systemFont(ofSize: s.fontSize)
+            let attrs: [NSAttributedString.Key: Any] = [.font: font]
+            let maxLineW = lines.map { ($0 as NSString).size(withAttributes: attrs).width }.max() ?? 0
+            let screenW = NSScreen.main?.visibleFrame.width ?? 800
+            panelWidth = min(maxLineW + Self.padding * 2, screenW - Self.margin * 2)
+        }
+
+        let size = NSSize(width: max(panelWidth, 100), height: max(50, height))
         setContentSize(size)
 
         if let screen = NSScreen.main {
