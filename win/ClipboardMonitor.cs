@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace ClipNotice;
@@ -7,12 +8,31 @@ sealed class ClipboardMonitor : ApplicationContext
 {
     readonly StickyForm _sticky;
     readonly System.Windows.Forms.Timer _pollTimer;
+    readonly NotifyIcon _tray;
     string _lastText = string.Empty;
 
     public ClipboardMonitor()
     {
         Settings.Load();
         _sticky = new StickyForm();
+
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("設定...", null, (_, _) =>
+        {
+            using var form = new SettingsForm();
+            form.Changed += () => _sticky.ShowText("プレビュー Preview\nABC abc 123 あいう");
+            form.ShowDialog();
+        });
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Quit ClipNotice", null, (_, _) => ExitThread());
+
+        _tray = new NotifyIcon
+        {
+            Icon = SystemIcons.Application,
+            Text = "ClipNotice",
+            Visible = true,
+            ContextMenuStrip = menu,
+        };
 
         try
         {
@@ -51,6 +71,8 @@ sealed class ClipboardMonitor : ApplicationContext
         {
             _pollTimer.Stop();
             _pollTimer.Dispose();
+            _tray.Visible = false;
+            _tray.Dispose();
             _sticky.Dispose();
         }
         base.Dispose(disposing);

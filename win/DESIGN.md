@@ -31,7 +31,7 @@ ClipNotice はこれを解消する: コピーした瞬間に内容が見える�
 ## UI Requirements
 
 - **タスクバー**: 表示しない（`ShowInTaskbar = false`）
-- **メニューバー**: なし（常駐型バックグラウンド動作）
+- **タスクトレイ**: 常駐アイコン (`NotifyIcon`) で右クリックメニュー (設定 / Quit) を常時提供
 - **付箋**: 画面左上のボーダーレス TopMost フォーム
 - **起動**: ユーザー任意（`shell:startup` にショートカット配置で自動起動可）
 
@@ -46,6 +46,10 @@ clipnotice.exe (WinForms, .NET 9, win-x64, single-file, framework-dependent)
 │   └── Application.Run(new ClipboardMonitor())
 │
 ├── ClipboardMonitor (ApplicationContext)
+│   ├── ctor で `Clipboard.GetText()` を `_lastText` に取り込み（起動時既存内容スキップ）
+│   ├── NotifyIcon (タスクトレイ常駐)
+│   │   ├── Icon = SystemIcons.Application
+│   │   └── ContextMenuStrip ["設定...", "Quit ClipNotice"]
 │   ├── Timer 500ms → Poll()
 │   ├── Clipboard.ContainsText() == false → skip
 │   ├── Clipboard.GetText() が前回と同じ → skip
