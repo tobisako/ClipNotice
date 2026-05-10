@@ -46,6 +46,14 @@ Program.cs  (エントリポイント)
 ClipboardMonitor : ApplicationContext
 ├── Settings.Load()                      ← 起動時にレジストリから設定読込
 ├── StickyForm _sticky                   ← 付箋ウィンドウ（1インスタンス使い回し）
+├── NotifyIcon _tray                     ← タスクトレイ常駐アイコン
+│   ├── Icon = SystemIcons.Application
+│   └── ContextMenuStrip
+│       ├── "設定..." → SettingsForm を ShowDialog（Changed イベントで _sticky に
+│       │              プレビューテキストを表示するハンドラを登録）
+│       └── "Quit ClipNotice" → ExitThread()
+├── ctor で `Clipboard.GetText()` を `_lastText` に seed
+│   （起動前にコピー済みの内容は表示しない、macOS の changeCount 初期化と等価）
 └── Timer 500ms
     └── Poll()
         ├── Clipboard.ContainsText() → false → スキップ
@@ -57,24 +65,29 @@ StickyForm : Form
 ├── ShowInTaskbar = false                ← タスクバー非表示
 ├── TopMost = true                       ← 最前面
 ├── Opacity = 0.95                       ← 半透明
-├── Label _label (DockStyle.Fill)
+├── Label _label (DockStyle.Fill, Padding=12)
 ├── ContextMenuStrip
-│   ├── "設定..." → new SettingsForm().ShowDialog()
+│   ├── "設定..." → SettingsForm を ShowDialog（Changed イベントでプレビュー表示を登録）
 │   └── "Quit ClipNotice" → Application.Exit()
 └── ShowText(string text)
     ├── 300文字超え → 切り捨て＋"…"
-    ├── Graphics.MeasureString() でウィンドウサイズを動的計算
-    │   ├── WordWrap=true  → 幅 320px 固定
-    │   └── WordWrap=false → テキスト幅に追従（画面幅を超えない）
+    ├── TextRenderer.MeasureText() (GDI) でウィンドウサイズを動的計算
+    │   ├── Label 描画は GDI（SetCompatibleTextRenderingDefault(false)）と同じ
+    │   │   レンダラを使うので glyph 末尾切れが起きない
+    │   ├── WordWrap=true  → 幅 320px 固定（提案幅で WordBreak）
+    │   └── WordWrap=false → テキスト幅 + 余白12px（画面幅を超えない）
     ├── 位置: Screen.PrimaryScreen.WorkingArea の左上＋20pxマージン
     ├── Timer 3000ms → Hide()
     └── Show() + BringToFront()
 
 SettingsForm : Form (FixedDialog, 340x230)
-├── TrackBar: FontSize (8〜48pt) → Settings.FontSize に即時反映
-├── Button: 文字色 → ColorDialog → Settings.TextColor
-├── Button: 背景色 → ColorDialog → Settings.BgColor
-└── CheckBox: 改行する → Settings.WordWrap
+├── public event Action? Changed         ← 各ウィジェット変更時に発火
+├── TrackBar: FontSize (8〜48pt) → Settings.FontSize に即時反映 → Changed
+├── Button: 文字色 → ColorDialog → Settings.TextColor → Changed
+├── Button: 背景色 → ColorDialog → Settings.BgColor → Changed
+└── CheckBox: 改行する → Settings.WordWrap → Changed
+    ※ 設定ダイアログを開いた側（StickyForm / NotifyIcon）が Changed を購読し、
+       プレビューテキスト「プレビュー Preview\nABC abc 123 あいう」を即時表示
 
 Settings (static class)
 ├── デフォルト: FontSize=13pt / TextColor=Black / BgColor=LightYellow / WordWrap=true
@@ -90,12 +103,12 @@ Settings (static class)
        │ 500ms poll (System.Windows.Forms.Timer)
        ▼
  ClipboardMonitor.Poll()
-       │ テキスト変化検知
+       │ テキスト変化検知（_lastText 比較）
        ▼
  StickyForm.ShowText(text)
        │
        ├─ Settings 読込 (FontSize / TextColor / BgColor / WordWrap)
-       ├─ Graphics.MeasureString() でサイズ算出
+       ├─ TextRenderer.MeasureText() (GDI) でサイズ算出
        ├─ 位置計算 (WorkingArea 左上)
        │
        ▼
@@ -158,29 +171,35 @@ SelfContained=false + PublishSingleFile=true
 
 ## Current Gaps（既知の欠陥・未実装）
 
-### 1. システムトレイアイコンなし
-- macOS版も Dockアイコンなしだが、Windows では通常トレイアイコンが存在しないアプリはユーザーが終了手段を失いやすい
-- 現状の終了手段: 付箋を右クリック → "Quit ClipNotice"
-- 問題点: 付箋が非表示の間はメニューにアクセスできない（次のコピーを待つ必要がある）
-- 対策案: `NotifyIcon` をトレイに常駐させ、そこからも Quit / 設定を呼べるようにする
-
-### 2. 設定ダイアログにライブプレビューなし
-- フォントサイズ・色を変更しても、次にクリップボードが変化するまで付箋に反映されない
-- `ShowText` を即時呼び出すプレビュー機能が未実装
-
-### 3. 自動起動（スタートアップ）未対応
+### 1. 自動起動（スタートアップ）未対応
 - Windows の「スタートアップ」フォルダや `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` への登録が未実装
-- ユーザーが手動で設定する必要がある
+- ユーザーが `Win+R` → `shell:startup` でショートカットを手動配置する必要がある
 
-### 4. SmartScreen 警告の可能性
-- EXE が未署名のため、初回実行時に Windows SmartScreen の警告ダイアログが表示される可能性がある
-- コード署名証明書による署名または Windows Defender への申請が未対応
+### 2. SmartScreen 警告
+- EXE が未署名のため、初回実行時に Windows SmartScreen の警告ダイアログが表示される
+- 「詳細情報」→「実行」で回避可能（README に手順を記載）
+- コード署名証明書による署名または Microsoft Store 申請が未対応
 
-### 5. 複数モニター未対応
+### 3. 複数モニター未対応
 - `Screen.PrimaryScreen` のみ参照しており、マルチモニター環境では主ディスプレイ左上にしか表示されない
 
-### 6. テキスト以外のクリップボード内容は無視
+### 4. テキスト以外のクリップボード内容は無視
 - 画像・ファイル・リッチテキストはスキップ（`Clipboard.ContainsText()` のみチェック）
+
+### 5. カスタムトレイアイコンなし
+- 現状は `SystemIcons.Application` を流用しており、ClipNotice 固有のアイコンは未作成
+
+---
+
+## 実装履歴 (v0.3.0 以降の主要修正)
+
+| 修正 | 内容 | 影響 |
+|------|------|------|
+| `[STAThread]` を Main に付与 | top-level statements は STA 自動付与なし → `Clipboard.GetText()` が `ThreadStateException` で常時失敗していた | クリップボード非反応バグの根因修正 |
+| `TextRenderer.MeasureText` に変更 | `Graphics.MeasureString` (GDI+) と Label 描画 (GDI) のメトリクス差で右端文字が切れていた | 末尾切れ解消、特に大フォント時に顕著 |
+| Settings ダイアログのライブプレビュー | `Changed` イベントを追加、StickyForm/NotifyIcon が購読してプレビューを即時表示 | 設定変更の体感が macOS 版と同等に |
+| `_lastText` を ctor で seed | `string.Empty` 初期化のため起動直後に既存クリップボード内容を1度表示してしまっていた | 起動時ノイズの解消、macOS の changeCount 初期化と同等動作 |
+| `NotifyIcon` 追加 | 付箋が3秒で消えた後、設定/Quit の入口がなくなるという UX gap | トレイから常時アクセス可能 |
 
 ---
 
@@ -208,4 +227,4 @@ SelfContained=false + PublishSingleFile=true
 | 付箋が画面幅を超える長い1行テキスト | `Screen.PrimaryScreen.WorkingArea.Width - Mar*2` を上限としてクリップ |
 | 付箋最小サイズ | `Math.Max(w, 80)` / `Math.Max(h, 40)` で最小80x40pxを保証 |
 | SettingsForm を開いている間に付箋タイマー切れ | 独立した `Timer` インスタンスで管理しており干渉しない |
-| 起動直後の初回クリップボード内容 | `_lastText = string.Empty` で初期化 → 起動前にコピーされた内容も表示される（macOS版との差異） |
+| 起動直後の初回クリップボード内容 | ctor で `Clipboard.GetText()` を `_lastText` に seed → 起動前にコピー済みの内容は表示しない（macOS の changeCount 初期化と同等） |
