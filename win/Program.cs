@@ -1,6 +1,15 @@
+using System;
 using System.Windows.Forms;
-using ClipNotice;
 
-Application.EnableVisualStyles();
-Application.SetCompatibleTextRenderingDefault(false);
-Application.Run(new ClipboardMonitor());
+namespace ClipNotice;
+
+static class Program
+{
+    [STAThread]
+    static void Main()
+    {
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.Run(new ClipboardMonitor());
+    }
+}
