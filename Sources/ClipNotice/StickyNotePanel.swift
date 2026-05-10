@@ -76,6 +76,8 @@ final class StickyNotePanel: NSPanel {
         backgroundColor = s.backgroundColor
         label.font = NSFont.systemFont(ofSize: s.fontSize)
         label.textColor = s.textColor
+        label.maximumNumberOfLines = s.wordWrap ? 0 : 1
+        label.lineBreakMode = s.wordWrap ? .byWordWrapping : .byTruncatingTail
     }
 
     func show(text: String) {

@@ -9,10 +9,11 @@ final class SettingsPanel: NSWindow {
     private let fontValueLabel = NSTextField(labelWithString: "13pt")
     private let textColorWell = NSColorWell()
     private let bgColorWell = NSColorWell()
+    private let wordWrapCheckbox = NSButton(checkboxWithTitle: "改行する", target: nil, action: nil)
 
     private init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 180),
+            contentRect: NSRect(x: 0, y: 0, width: 340, height: 210),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -44,7 +45,11 @@ final class SettingsPanel: NSWindow {
         bgColorWell.target = self
         bgColorWell.action = #selector(bgColorChanged)
 
-        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell] {
+        // --- Word wrap checkbox ---
+        wordWrapCheckbox.target = self
+        wordWrapCheckbox.action = #selector(wordWrapChanged)
+
+        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox] {
             v.translatesAutoresizingMaskIntoConstraints = false
             cv.addSubview(v)
         }
@@ -87,6 +92,10 @@ final class SettingsPanel: NSWindow {
             bgColorWell.centerYAnchor.constraint(equalTo: bgLabel.centerYAnchor),
             bgColorWell.widthAnchor.constraint(equalToConstant: 44),
             bgColorWell.heightAnchor.constraint(equalToConstant: 28),
+
+            // Row 4: word wrap
+            wordWrapCheckbox.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p + labelW + 8),
+            wordWrapCheckbox.topAnchor.constraint(equalTo: bgLabel.bottomAnchor, constant: rowH),
         ])
     }
 
@@ -102,6 +111,7 @@ final class SettingsPanel: NSWindow {
         fontValueLabel.stringValue = "\(Int(s.fontSize))pt"
         textColorWell.color = s.textColor
         bgColorWell.color = s.backgroundColor
+        wordWrapCheckbox.state = s.wordWrap ? .on : .off
     }
 
     @objc private func fontChanged() {
@@ -121,8 +131,15 @@ final class SettingsPanel: NSWindow {
         onChanged?()
     }
 
+    @objc private func wordWrapChanged() {
+        Settings.shared.wordWrap = wordWrapCheckbox.state == .on
+        onChanged?()
+    }
+
     func open() {
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
+        NSObject.cancelPreviousPerformRequests(withTarget: self)
+        perform(#selector(close), with: nil, afterDelay: 10)
     }
 }
