@@ -1,4 +1,10 @@
-.build/
+# macOS build
+mac/.build/
 *.o
 *.d
 .DS_Store
+
+# Windows build
+win/bin/
+win/obj/
+win/publish/

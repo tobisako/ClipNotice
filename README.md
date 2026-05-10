@@ -1,6 +1,6 @@
 # ClipNotice
 
-**Clipboard copy notifier for macOS — ambient, zero-UI.**
+**Clipboard copy notifier — macOS & Windows, ambient, zero-UI.**
 
 コピーした瞬間、画面の隅に付箋が表示される。3秒で消える。
 Dockなし、メニューバーなし。確認のためにペーストする必要がなくなる。
@@ -16,7 +16,7 @@ Dockなし、メニューバーなし。確認のためにペーストする必�
 
 ---
 
-## Install
+## Install — macOS
 
 ### Homebrew (推奨)
 
@@ -30,12 +30,28 @@ clipnotice &
 
 ```bash
 git clone https://github.com/tobisako/ClipNotice.git
-cd ClipNotice
+cd ClipNotice/mac
 bash build.sh release
 .build/release/clipnotice &
 ```
 
-**Requirements:** macOS 13+, Xcode (for swiftc)
+**Requirements:** macOS 13+, Xcode
+
+---
+
+## Install — Windows
+
+### Download EXE
+
+[**Releases**](https://github.com/tobisako/ClipNotice/releases) から `clipnotice.exe` をダウンロードして実行。
+
+**SmartScreen 警告が出た場合:**
+1. 「詳細情報」をクリック
+2. 「実行」をクリック
+
+これは署名なし配布の場合に表示される Windows の警告です。コードは [オープンソース](https://github.com/tobisako/ClipNotice/tree/master/win) です。
+
+**Requirements:** Windows 10/11、.NET 9 ランタイム（[Microsoft 公式](https://dotnet.microsoft.com/download/dotnet/9.0)からインストール可能）
 
 ---
 
@@ -58,62 +74,50 @@ bash build.sh release
 | 設定 | 内容 |
 |------|------|
 | 文字サイズ | 8〜48pt スライダー |
-| 文字の色 | システムカラーピッカー |
-| 背景の色 | システムカラーピッカー（デフォルト: 黄色） |
+| 文字の色 | カラーピッカー |
+| 背景の色 | カラーピッカー（デフォルト: 黄色） |
 | 改行する | 長文の折り返し on/off |
-
-設定パネルは10秒後に自動で閉じる。
 
 ---
 
 ## Auto-start at login
 
-**System Settings → General → Login Items → "+" → `.build/release/clipnotice` を追加**
+**macOS:** System Settings → General → Login Items → "+" → `.build/release/clipnotice`
 
-または LaunchAgent:
-
-```bash
-mkdir -p ~/Library/LaunchAgents
-cat > ~/Library/LaunchAgents/com.tobisako.clipnotice.plist << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.tobisako.clipnotice</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/path/to/.build/release/clipnotice</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-</dict>
-</plist>
-EOF
-launchctl load ~/Library/LaunchAgents/com.tobisako.clipnotice.plist
-```
+**Windows:** `Win+R` → `shell:startup` → `clipnotice.exe` のショートカットを配置
 
 ---
 
-## Distribution without Apple notarization
+## Repo structure
 
-Homebrew Formula経由でインストールすると、ユーザーマシンでソースビルドされるため
-`quarantine` 属性が付かない → Gatekeeperチェックなし → Apple Developer認証不要。
+```
+ClipNotice/
+├── mac/          # Swift + AppKit (macOS)
+│   ├── Sources/ClipNotice/
+│   ├── Package.swift
+│   └── build.sh
+└── win/          # C# + WinForms (Windows)
+    ├── ClipboardMonitor.cs
+    ├── StickyForm.cs
+    ├── SettingsForm.cs
+    ├── Settings.cs
+    └── ClipNotice.csproj
+```
 
 ---
 
 ## Specs
 
-| 項目 | 内容 |
-|------|------|
-| Dock | 非表示 |
-| メニューバー | なし |
-| 検知 | `NSPasteboard.changeCount` ポーリング (0.5秒) |
-| 表示 | `NSPanel` (floating, nonactivating) |
-| テキスト | 最大300文字（超過は末尾…） |
-| 対象 | 文字列のみ（画像・ファイルは無視） |
-| macOS | 13.0 Ventura 以降 |
-| アーキテクチャ | Apple Silicon (arm64) |
+| 項目 | macOS | Windows |
+|------|-------|---------|
+| 言語 | Swift 5.9 | C# / .NET 9 |
+| UI | AppKit NSPanel | WinForms |
+| 検知 | NSPasteboard.changeCount ポーリング | Clipboard API ポーリング |
+| ポーリング間隔 | 0.5秒 | 0.5秒 |
+| テキスト上限 | 300文字 | 300文字 |
+| 対象 | 文字列のみ | 文字列のみ |
+| OS | macOS 13+ | Windows 10/11 |
+| 配布 | Homebrew (ソースビルド) | GitHub Releases (EXE) |
 
 ---
 

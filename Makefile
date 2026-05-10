@@ -1,42 +1,18 @@
-SWIFT := /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc
-SDK   := $(shell ls -d /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX*.sdk 2>/dev/null | sort -V | tail -1)
-SRC   := Sources/ClipNotice
-OUT   := .build
+MAC_DIR := mac
 
-SOURCES := $(SRC)/main.swift $(SRC)/AppDelegate.swift $(SRC)/ClipboardMonitor.swift $(SRC)/StickyNotePanel.swift
+.PHONY: mac mac-debug mac-run mac-kill mac-clean
 
-.PHONY: build run clean kill
+mac:
+	bash $(MAC_DIR)/build.sh release
 
-build:
-	@mkdir -p $(OUT)/release
-	$(SWIFT) \
-		-sdk "$(SDK)" \
-		-target arm64-apple-macosx13.0 \
-		-module-name clipnotice \
-		-O \
-		-framework AppKit \
-		-framework Foundation \
-		-o $(OUT)/release/clipnotice \
-		$(SOURCES)
-	@echo "Built: $(OUT)/release/clipnotice"
+mac-debug:
+	bash $(MAC_DIR)/build.sh debug
 
-debug:
-	@mkdir -p $(OUT)/debug
-	$(SWIFT) \
-		-sdk "$(SDK)" \
-		-target arm64-apple-macosx13.0 \
-		-module-name clipnotice \
-		-framework AppKit \
-		-framework Foundation \
-		-o $(OUT)/debug/clipnotice \
-		$(SOURCES)
-	@echo "Built: $(OUT)/debug/clipnotice"
+mac-run: mac-debug
+	$(MAC_DIR)/.build/debug/clipnotice &
 
-run: debug
-	.build/debug/clipnotice &
-
-kill:
+mac-kill:
 	@pkill clipnotice 2>/dev/null && echo "Stopped" || echo "Not running"
 
-clean:
-	rm -rf $(OUT)
+mac-clean:
+	rm -rf $(MAC_DIR)/.build
