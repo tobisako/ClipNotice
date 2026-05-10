@@ -58,21 +58,19 @@ sealed class StickyForm : Form
         _label.ForeColor = Settings.TextColor;
         BackColor = Settings.BgColor;
 
-        SizeF measured;
-        using (var g = CreateGraphics())
-        {
-            var fmt = Settings.WordWrap
-                ? new StringFormat { Trimming = StringTrimming.Word }
-                : new StringFormat { FormatFlags = StringFormatFlags.NoWrap };
-            measured = g.MeasureString(display, _label.Font,
-                Settings.WordWrap ? MaxWidth - Pad * 2 : int.MaxValue, fmt);
-        }
+        var flags = Settings.WordWrap
+            ? TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix
+            : TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix;
+        var proposed = Settings.WordWrap
+            ? new Size(MaxWidth - Pad * 2, int.MaxValue)
+            : new Size(int.MaxValue, int.MaxValue);
+        var measured = TextRenderer.MeasureText(display, _label.Font, proposed, flags);
 
         var w = Settings.WordWrap
             ? MaxWidth
-            : Math.Min((int)measured.Width + Pad * 2 + 4,
+            : Math.Min(measured.Width + Pad * 2 + 12,
                        Screen.PrimaryScreen!.WorkingArea.Width - Mar * 2);
-        var h = (int)measured.Height + Pad * 2 + 4;
+        var h = measured.Height + Pad * 2 + 8;
 
         Size = new Size(Math.Max(w, 80), Math.Max(h, 40));
 
