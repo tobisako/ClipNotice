@@ -27,9 +27,6 @@ $SWIFT \
   -framework AppKit \
   -framework Foundation \
   -o "$OUT/clipnotice" \
-  "$SRC/main.swift" \
-  "$SRC/AppDelegate.swift" \
-  "$SRC/ClipboardMonitor.swift" \
-  "$SRC/StickyNotePanel.swift"
+  "$SRC"/*.swift
 
 echo "Built: $OUT/clipnotice"
