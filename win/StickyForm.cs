@@ -35,7 +35,12 @@ sealed class StickyForm : Form
         _label.MouseClick += (_, _) => Hide();
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("設定...", null, (_, _) => new SettingsForm().ShowDialog(this));
+        menu.Items.Add("設定...", null, (_, _) =>
+        {
+            using var form = new SettingsForm();
+            form.Changed += () => ShowText("プレビュー Preview\nABC abc 123 あいう");
+            form.ShowDialog(this);
+        });
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit ClipNotice", null, (_, _) => Application.Exit());
         ContextMenuStrip = menu;

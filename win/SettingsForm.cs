@@ -6,6 +6,8 @@ namespace ClipNotice;
 
 sealed class SettingsForm : Form
 {
+    public event Action? Changed;
+
     public SettingsForm()
     {
         Text = "ClipNotice 設定";
@@ -58,6 +60,7 @@ sealed class SettingsForm : Form
         {
             Settings.FontSize = slider.Value;
             lblVal.Text = $"{slider.Value}pt";
+            Changed?.Invoke();
         };
 
         btnTc.Click += (_, _) =>
@@ -67,6 +70,7 @@ sealed class SettingsForm : Form
             {
                 Settings.TextColor = dlg.Color;
                 btnTc.BackColor = dlg.Color;
+                Changed?.Invoke();
             }
         };
 
@@ -77,10 +81,15 @@ sealed class SettingsForm : Form
             {
                 Settings.BgColor = dlg.Color;
                 btnBg.BackColor = dlg.Color;
+                Changed?.Invoke();
             }
         };
 
-        chkWrap.CheckedChanged += (_, _) => Settings.WordWrap = chkWrap.Checked;
+        chkWrap.CheckedChanged += (_, _) =>
+        {
+            Settings.WordWrap = chkWrap.Checked;
+            Changed?.Invoke();
+        };
 
         Controls.AddRange(new Control[] { lblFont, slider, lblVal, lblTc, btnTc, lblBg, btnBg, chkWrap });
     }
