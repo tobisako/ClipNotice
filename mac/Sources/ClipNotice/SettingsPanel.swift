@@ -86,6 +86,13 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
             cv.addSubview(v)
         }
 
+        // Layer properties require the view to be in a window hierarchy
+        for btn in [textColorButton, bgColorButton] {
+            btn.layer?.cornerRadius = 4
+            btn.layer?.borderWidth = 0.5
+            btn.layer?.borderColor = NSColor.black.withAlphaComponent(0.3).cgColor
+        }
+
         let p: CGFloat = 20
         let rowH: CGFloat = 30
         let labelW: CGFloat = 80
@@ -175,9 +182,6 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
         b.isBordered = false
         b.title = ""
         b.wantsLayer = true
-        b.layer?.cornerRadius = 4
-        b.layer?.borderWidth = 0.5
-        b.layer?.borderColor = NSColor.black.withAlphaComponent(0.3).cgColor
         return b
     }
 
@@ -256,9 +260,15 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
         scheduleAutoClose()
     }
 
+    override func close() {
+        super.close()
+        colorPicker.close()
+    }
+
     func open() {
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
+        loadFromSettings()
         scheduleAutoClose()
     }
 }
