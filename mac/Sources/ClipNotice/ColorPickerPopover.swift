@@ -18,7 +18,7 @@ final class ColorPickerPopover: NSPopover {
         self.onChange = onChange
         vc.onSelect = { [weak self] c in self?.onChange?(c) }
         if !isShown {
-            show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
+            show(relativeTo: view.bounds, of: view, preferredEdge: .maxX)
         }
     }
 }

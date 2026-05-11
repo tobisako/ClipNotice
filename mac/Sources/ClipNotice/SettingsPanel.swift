@@ -208,7 +208,7 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
 
     @objc private func openTextColorPicker() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
-        colorPicker.show(from: textColorButton, current: Settings.shared.textColor) { [weak self] c in
+        colorPicker.show(from: contentView!, current: Settings.shared.textColor) { [weak self] c in
             Settings.shared.textColor = c
             self?.textColorButton.layer?.backgroundColor = c.cgColor
             self?.onChanged?()
@@ -217,7 +217,7 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
 
     @objc private func openBgColorPicker() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
-        colorPicker.show(from: bgColorButton, current: Settings.shared.backgroundColor) { [weak self] c in
+        colorPicker.show(from: contentView!, current: Settings.shared.backgroundColor) { [weak self] c in
             Settings.shared.backgroundColor = c
             self?.bgColorButton.layer?.backgroundColor = c.cgColor
             self?.onChanged?()
@@ -253,6 +253,11 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
 
     func popoverWillShow(_ notification: Notification) {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+    }
+
+    func popoverDidShow(_ notification: Notification) {
+        // Raise popover window above the settings panel (.modalPanel = level 8)
+        colorPicker.contentViewController?.view.window?.level = NSWindow.Level(rawValue: NSWindow.Level.modalPanel.rawValue + 1)
     }
 
     func popoverDidClose(_ notification: Notification) {
