@@ -32,7 +32,7 @@ ClipNoticeはこれを解消する: コピーした瞬間に内容が見える�
 - **Dockアイコン**: なし（`.accessory` activation policy）
 - **メニューバー**: なし（常駐しない）
 - **付箋**: 画面左上フローティングウィンドウ（NSPanel）
-- **起動**: ログイン時自動起動（Login Items）
+- **起動**: ログイン時自動起動（Login Items）— アプリ内未実装。ユーザーが手動でシステム設定 → 一般 → ログイン項目に追加する
 
 ## Architecture
 
@@ -43,7 +43,7 @@ AppDelegate
 │   ├── changeCount変化なし → スキップ
 │   └── 変化あり → NSPasteboard.string(forType: .string) → StickyNotePanel.show(text)
 │
-└── StickyNotePanel (NSPanel, NSMenuDelegate)
+└── StickyNotePanel (NSPanel, NSMenuDelegate, NSWindowDelegate)
     ├── level: .floating
     ├── styleMask: .nonactivatingPanel | .fullSizeContentView
     ├── collectionBehavior: .canJoinAllSpaces | .stationary
@@ -60,10 +60,11 @@ AppDelegate
     │       └── menuIsOpen == true  → alphaValue=0, ignoresMouseEvents=true
     │                                  + cancelTracking() after 2s
     │
-    ├── mouseDown → dismissWorkItem.cancel(), dragStartLocation = NSEvent.mouseLocation
+    ├── mouseDown → dismissWorkItem.cancel(), mouseDownReceived=true, wasDrag=false
+    ├── windowDidMove (NSWindowDelegate) → mouseDownReceived==true なら wasDrag=true, customOrigin=frame.origin
     ├── mouseUp
-    │   ├── 移動量 < 5px → close()  (クリック判定)
-    │   └── 移動量 ≥ 5px → customOrigin = frame.origin, scheduleDismiss()  (ドラッグ)
+    │   ├── wasDrag == true  → scheduleDismiss()  (ドラッグ判定)
+    │   └── wasDrag == false → close()             (クリック判定)
     │
     ├── NSMenuDelegate
     │   ├── menuWillOpen → menuIsOpen = true
@@ -166,13 +167,16 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 ## Drag-to-Move
 
 - `isMovableByWindowBackground = true` → AppKit が window drag を処理
-- `mouseDown`: `dragStartLocation = NSEvent.mouseLocation`（スクリーン座標）でドラッグ開始記録、タイマーキャンセル
-- `mouseUp`: スクリーン座標で移動量を計算
-  - < 5px → クリック判定 → close()
-  - ≥ 5px → ドラッグ判定 → `customOrigin = frame.origin` 保存、scheduleDismiss()
+- `mouseDown`: `dismissWorkItem.cancel()`, `mouseDownReceived = true`, `wasDrag = false`
+- `windowDidMove` (NSWindowDelegate): `mouseDownReceived == true` なら `wasDrag = true`, `customOrigin = frame.origin`
+- `mouseUp`:
+  - `wasDrag == true`  → ドラッグ判定 → `scheduleDismiss()`
+  - `wasDrag == false` → クリック判定 → `close()`
 - `customOrigin` があれば次回 `show()` でその位置に表示
 
-**注意**: `locationInWindow` はウィンドウ相対座標のため、isMovableByWindowBackground と組み合わせると常にほぼ0になり誤判定する。`NSEvent.mouseLocation`（スクリーン絶対座標）を使う。
+**注意**: `isMovableByWindowBackground` 使用時、ドラッグ中の座標は AppKit が管理するため
+`locationInWindow` / `NSEvent.mouseLocation` では正確なドラッグ量を取れない。
+代わりに `windowDidMove` デリゲートでドラッグを検知する。
 
 ## Context Menu Lifetime
 
