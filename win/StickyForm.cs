@@ -60,7 +60,7 @@ sealed class StickyForm : Form
 
         var flags = Settings.WordWrap
             ? TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix
-            : TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix;
+            : TextFormatFlags.NoPrefix;
         var proposed = Settings.WordWrap
             ? new Size(MaxWidth - Pad * 2, int.MaxValue)
             : new Size(int.MaxValue, int.MaxValue);
