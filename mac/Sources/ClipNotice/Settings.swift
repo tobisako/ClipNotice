@@ -27,6 +27,14 @@ final class Settings {
         set { defaults.set(newValue, forKey: "wordWrap") }
     }
 
+    var dismissDelay: TimeInterval {
+        get {
+            let v = defaults.double(forKey: "dismissDelay")
+            return v > 0 ? v : 3.0
+        }
+        set { defaults.set(newValue, forKey: "dismissDelay") }
+    }
+
     private init() {}
 
     private func color(forKey key: String) -> NSColor? {

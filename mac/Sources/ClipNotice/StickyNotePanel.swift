@@ -1,7 +1,7 @@
 import AppKit
 
 final class StickyNotePanel: NSPanel {
-    private static let dismissDelay: TimeInterval = 3.0
+    private static let dismissDelay: TimeInterval = 3.0  // fallback only
     private static let maxTextLength = 300
     private static let panelWidth: CGFloat = 320
     private static let padding: CGFloat = 12
@@ -125,7 +125,7 @@ final class StickyNotePanel: NSPanel {
             self?.close()
         }
         dismissWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.dismissDelay, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Settings.shared.dismissDelay, execute: work)
     }
 
     @objc private func openSettings() {
@@ -149,7 +149,7 @@ final class StickyNotePanel: NSPanel {
             customOrigin = frame.origin
             let work = DispatchWorkItem { [weak self] in self?.close() }
             dismissWorkItem = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.dismissDelay, execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + Settings.shared.dismissDelay, execute: work)
         }
         dragStartLocation = nil
     }

@@ -7,7 +7,6 @@ namespace ClipNotice;
 sealed class StickyForm : Form
 {
     const int MaxTextLength = 300;
-    const int DismissMs = 3000;
     const int Pad = 12;
     const int Mar = 20;
     const int MaxWidth = 320;
@@ -88,7 +87,7 @@ sealed class StickyForm : Form
 
         _timer?.Stop();
         _timer?.Dispose();
-        _timer = new System.Windows.Forms.Timer { Interval = DismissMs };
+        _timer = new System.Windows.Forms.Timer { Interval = Settings.DismissMs };
         _timer.Tick += (_, _) => { _timer.Stop(); Hide(); };
         _timer.Start();
 
@@ -128,7 +127,7 @@ sealed class StickyForm : Form
             {
                 _savedLocation = Location;
                 _timer?.Dispose();
-                _timer = new System.Windows.Forms.Timer { Interval = DismissMs };
+                _timer = new System.Windows.Forms.Timer { Interval = Settings.DismissMs };
                 _timer.Tick += (_, _) => { _timer.Stop(); Hide(); };
                 _timer.Start();
             }

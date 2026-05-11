@@ -11,7 +11,7 @@ sealed class SettingsForm : Form
     public SettingsForm()
     {
         Text = "ClipNotice 設定";
-        Size = new Size(340, 230);
+        Size = new Size(340, 266);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -56,6 +56,20 @@ sealed class SettingsForm : Form
             Checked = Settings.WordWrap, AutoSize = true
         };
 
+        // Dismiss delay
+        var lblDismiss = new Label { Text = "表示時間", Location = new Point(lx, ry + rh * 4 + 4), AutoSize = true };
+        var sliderDismiss = new TrackBar
+        {
+            Location = new Point(cx, ry + rh * 4), Size = new Size(150, 40),
+            Minimum = 1, Maximum = 5, Value = Settings.DismissMs / 1000,
+            TickFrequency = 1, SmallChange = 1
+        };
+        var lblDismissVal = new Label
+        {
+            Text = $"{Settings.DismissMs / 1000}秒",
+            Location = new Point(cx + 158, ry + rh * 4 + 4), AutoSize = true
+        };
+
         slider.ValueChanged += (_, _) =>
         {
             Settings.FontSize = slider.Value;
@@ -91,6 +105,12 @@ sealed class SettingsForm : Form
             Changed?.Invoke();
         };
 
-        Controls.AddRange(new Control[] { lblFont, slider, lblVal, lblTc, btnTc, lblBg, btnBg, chkWrap });
+        sliderDismiss.ValueChanged += (_, _) =>
+        {
+            Settings.DismissMs = sliderDismiss.Value * 1000;
+            lblDismissVal.Text = $"{sliderDismiss.Value}秒";
+        };
+
+        Controls.AddRange(new Control[] { lblFont, slider, lblVal, lblTc, btnTc, lblBg, btnBg, chkWrap, lblDismiss, sliderDismiss, lblDismissVal });
     }
 }

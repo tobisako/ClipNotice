@@ -10,10 +10,12 @@ final class SettingsPanel: NSWindow {
     private let textColorWell = NSColorWell()
     private let bgColorWell = NSColorWell()
     private let wordWrapCheckbox = NSButton(checkboxWithTitle: "改行する", target: nil, action: nil)
+    private let dismissSlider = NSSlider(value: 3, minValue: 1, maxValue: 5, target: nil, action: nil)
+    private let dismissValueLabel = NSTextField(labelWithString: "3秒")
 
     private init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 210),
+            contentRect: NSRect(x: 0, y: 0, width: 340, height: 250),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -50,7 +52,16 @@ final class SettingsPanel: NSWindow {
         wordWrapCheckbox.target = self
         wordWrapCheckbox.action = #selector(wordWrapChanged)
 
-        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox] {
+        // --- Dismiss delay row ---
+        let dismissLabel = label("表示時間")
+        dismissSlider.isContinuous = true
+        dismissSlider.numberOfTickMarks = 5
+        dismissSlider.allowsTickMarkValuesOnly = true
+        dismissSlider.target = self
+        dismissSlider.action = #selector(dismissChanged)
+        dismissValueLabel.alignment = .right
+
+        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox, dismissLabel, dismissSlider, dismissValueLabel] {
             v.translatesAutoresizingMaskIntoConstraints = false
             cv.addSubview(v)
         }
@@ -97,6 +108,20 @@ final class SettingsPanel: NSWindow {
             // Row 4: word wrap
             wordWrapCheckbox.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p + labelW + 8),
             wordWrapCheckbox.topAnchor.constraint(equalTo: bgLabel.bottomAnchor, constant: rowH),
+
+            // Row 5: dismiss delay
+            dismissLabel.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p),
+            dismissLabel.topAnchor.constraint(equalTo: wordWrapCheckbox.bottomAnchor, constant: rowH - 4),
+            dismissLabel.widthAnchor.constraint(equalToConstant: labelW),
+
+            dismissSlider.leadingAnchor.constraint(equalTo: dismissLabel.trailingAnchor, constant: 8),
+            dismissSlider.centerYAnchor.constraint(equalTo: dismissLabel.centerYAnchor),
+            dismissSlider.trailingAnchor.constraint(equalTo: cv.trailingAnchor, constant: -p - 50),
+
+            dismissValueLabel.leadingAnchor.constraint(equalTo: dismissSlider.trailingAnchor, constant: 8),
+            dismissValueLabel.trailingAnchor.constraint(equalTo: cv.trailingAnchor, constant: -p),
+            dismissValueLabel.centerYAnchor.constraint(equalTo: dismissSlider.centerYAnchor),
+            dismissValueLabel.widthAnchor.constraint(equalToConstant: 42),
         ])
     }
 
@@ -113,6 +138,8 @@ final class SettingsPanel: NSWindow {
         textColorWell.color = s.textColor
         bgColorWell.color = s.backgroundColor
         wordWrapCheckbox.state = s.wordWrap ? .on : .off
+        dismissSlider.doubleValue = s.dismissDelay
+        dismissValueLabel.stringValue = "\(Int(s.dismissDelay))秒"
     }
 
     @objc private func fontChanged() {
@@ -135,6 +162,12 @@ final class SettingsPanel: NSWindow {
     @objc private func wordWrapChanged() {
         Settings.shared.wordWrap = wordWrapCheckbox.state == .on
         onChanged?()
+    }
+
+    @objc private func dismissChanged() {
+        let v = Int(dismissSlider.doubleValue)
+        Settings.shared.dismissDelay = TimeInterval(v)
+        dismissValueLabel.stringValue = "\(v)秒"
     }
 
     func open() {

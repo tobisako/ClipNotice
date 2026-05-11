@@ -11,6 +11,7 @@ static class Settings
     static Color _textColor = Color.Black;
     static Color _bgColor = Color.LightYellow;
     static bool _wordWrap = true;
+    static int _dismissMs = 3000;
 
     public static float FontSize
     {
@@ -36,6 +37,12 @@ static class Settings
         set { _wordWrap = value; Save(); }
     }
 
+    public static int DismissMs
+    {
+        get => _dismissMs;
+        set { _dismissMs = value; Save(); }
+    }
+
     public static void Load()
     {
         using var key = Registry.CurrentUser.OpenSubKey(Key);
@@ -44,6 +51,7 @@ static class Settings
         if (key.GetValue("TextColorArgb") is int tc) _textColor = Color.FromArgb(tc);
         if (key.GetValue("BgColorArgb") is int bc) _bgColor = Color.FromArgb(bc);
         if (key.GetValue("WordWrap") is int ww) _wordWrap = ww != 0;
+        if (key.GetValue("DismissMs") is int dm) _dismissMs = dm;
     }
 
     static void Save()
@@ -53,5 +61,6 @@ static class Settings
         key.SetValue("TextColorArgb", _textColor.ToArgb());
         key.SetValue("BgColorArgb", _bgColor.ToArgb());
         key.SetValue("WordWrap", _wordWrap ? 1 : 0);
+        key.SetValue("DismissMs", _dismissMs);
     }
 }
