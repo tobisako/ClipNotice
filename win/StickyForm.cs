@@ -13,6 +13,7 @@ sealed class StickyForm : Form
 
     readonly Label _label;
     System.Windows.Forms.Timer? _timer;
+    System.Windows.Forms.Timer? _menuCloseTimer;
     Point _screenDragStart;
     Point _formOriginAtDragStart;
     bool _dragging;
@@ -46,13 +47,22 @@ sealed class StickyForm : Form
         menu.Items.Add("設定...", null, (_, _) =>
         {
             using var form = new SettingsForm();
-            form.Changed += () => ShowText("プレビュー Preview\nABC abc 123 あいう");
+            form.Changed += () => ShowText(Settings.WordWrap
+                ? "プレビュー Preview\nABC abc 123 あいう"
+                : "プレビュー Preview  ABC abc 123 あいう");
             form.ShowDialog(this);
         });
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit ClipNotice", null, (_, _) => Application.Exit());
-        menu.Opened += (_, _) => { _menuOpen = true; _timer?.Stop(); };
-        menu.Closed += (_, _) => { _menuOpen = false; if (Opacity == 0) { Opacity = 0.95; Hide(); } };
+        menu.Opened += (_, _) => { _menuOpen = true; };
+        menu.Closed += (_, _) =>
+        {
+            _menuOpen = false;
+            _menuCloseTimer?.Stop();
+            _menuCloseTimer?.Dispose();
+            _menuCloseTimer = null;
+            if (Opacity == 0) { Opacity = 0.95; Hide(); }
+        };
         ContextMenuStrip = menu;
         _label.ContextMenuStrip = menu;
     }
@@ -135,22 +145,28 @@ sealed class StickyForm : Form
     void StartDismissTimer()
     {
         _timer?.Dispose();
+        _menuCloseTimer?.Stop();
+        _menuCloseTimer?.Dispose();
+        _menuCloseTimer = null;
+
         _timer = new System.Windows.Forms.Timer { Interval = Settings.DismissMs };
         _timer.Tick += (_, _) =>
         {
             _timer.Stop();
             if (_menuOpen)
             {
+                // メニュー表示中: 付箋を不可視化、2秒後にメニューを強制クローズ
+                // (mac: alphaValue=0 + cancelTracking() after 2s と等価)
                 Opacity = 0;
-                var closeTimer = new System.Windows.Forms.Timer { Interval = 2000 };
-                closeTimer.Tick += (_, _) =>
+                _menuCloseTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+                _menuCloseTimer.Tick += (_, _) =>
                 {
-                    closeTimer.Stop();
-                    closeTimer.Dispose();
-                    Opacity = 0.95;
-                    Hide();
+                    _menuCloseTimer.Stop();
+                    _menuCloseTimer.Dispose();
+                    _menuCloseTimer = null;
+                    ContextMenuStrip?.Close();  // → menu.Closed → Opacity 復帰 + Hide
                 };
-                closeTimer.Start();
+                _menuCloseTimer.Start();
             }
             else
             {

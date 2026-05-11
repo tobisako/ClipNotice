@@ -20,7 +20,9 @@ sealed class ClipboardMonitor : ApplicationContext
         menu.Items.Add("設定...", null, (_, _) =>
         {
             using var form = new SettingsForm();
-            form.Changed += () => _sticky.ShowText("プレビュー Preview\nABC abc 123 あいう");
+            form.Changed += () => _sticky.ShowText(Settings.WordWrap
+                ? "プレビュー Preview\nABC abc 123 あいう"
+                : "プレビュー Preview  ABC abc 123 あいう");
             form.ShowDialog();
         });
         menu.Items.Add(new ToolStripSeparator());

@@ -47,7 +47,9 @@ bash build.sh release
 
 ### Download EXE
 
-[**Releases**](https://github.com/tobisako/ClipNotice/releases) から `clipnotice.exe` をダウンロードして実行。
+最新版 [`clipnotice.exe`](https://github.com/tobisako/ClipNotice/releases/latest/download/clipnotice.exe) をダウンロードして起動するだけ。
+
+または [Releases](https://github.com/tobisako/ClipNotice/releases) ページから個別バージョンをダウンロード可能。
 
 **SmartScreen 警告が出た場合:**
 1. 「詳細情報」をクリック
@@ -55,7 +57,18 @@ bash build.sh release
 
 これは署名なし配布の場合に表示される Windows の警告です。コードは [オープンソース](https://github.com/tobisako/ClipNotice/tree/master/win) です。
 
-**Requirements:** Windows 10/11、.NET 9 ランタイム（[Microsoft 公式](https://dotnet.microsoft.com/download/dotnet/9.0)からインストール可能）
+**Requirements:** Windows 10/11 (64-bit)。.NET ランタイムは EXE に同梱済み（self-contained）、別途インストール不要。
+
+### Build from source
+
+```powershell
+git clone https://github.com/tobisako/ClipNotice.git
+cd ClipNotice/win
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+.\bin\Release\net9.0-windows\win-x64\publish\clipnotice.exe
+```
+
+**Requirements:** .NET 9 SDK
 
 ---
 

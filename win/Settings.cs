@@ -12,6 +12,7 @@ static class Settings
     static Color _bgColor = Color.LightYellow;
     static bool _wordWrap = true;
     static int _dismissMs = 3000;
+    static int _settingsAutoCloseSecs = 8;
 
     public static float FontSize
     {
@@ -43,6 +44,16 @@ static class Settings
         set { _dismissMs = value; Save(); }
     }
 
+    public static int SettingsAutoCloseSecs
+    {
+        get => _settingsAutoCloseSecs;
+        set
+        {
+            _settingsAutoCloseSecs = value is 2 or 4 or 6 or 8 or 10 ? value : 8;
+            Save();
+        }
+    }
+
     public static void Load()
     {
         using var key = Registry.CurrentUser.OpenSubKey(Key);
@@ -52,6 +63,8 @@ static class Settings
         if (key.GetValue("BgColorArgb") is int bc) _bgColor = Color.FromArgb(bc);
         if (key.GetValue("WordWrap") is int ww) _wordWrap = ww != 0;
         if (key.GetValue("DismissMs") is int dm) _dismissMs = dm;
+        if (key.GetValue("SettingsAutoCloseSecs") is int ac && ac is 2 or 4 or 6 or 8 or 10)
+            _settingsAutoCloseSecs = ac;
     }
 
     static void Save()
@@ -62,5 +75,6 @@ static class Settings
         key.SetValue("BgColorArgb", _bgColor.ToArgb());
         key.SetValue("WordWrap", _wordWrap ? 1 : 0);
         key.SetValue("DismissMs", _dismissMs);
+        key.SetValue("SettingsAutoCloseSecs", _settingsAutoCloseSecs);
     }
 }
