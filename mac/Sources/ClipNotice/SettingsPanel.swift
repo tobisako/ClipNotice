@@ -10,6 +10,7 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     private let textColorButton = SettingsPanel.makeColorButton()
     private let bgColorButton   = SettingsPanel.makeColorButton()
     private let colorPicker = ColorPickerPopover()
+    private var closingAll = false
     private let wordWrapCheckbox = NSButton(checkboxWithTitle: "改行する", target: nil, action: nil)
     private let dismissSlider = NSSlider(value: 6, minValue: 1, maxValue: 10, target: nil, action: nil)
     private let dismissValueLabel = NSTextField(labelWithString: "3秒")
@@ -255,14 +256,16 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
-        guard isVisible else { return }
+        guard isVisible, !closingAll else { return }
         makeKeyAndOrderFront(nil)
         scheduleAutoClose()
     }
 
     override func close() {
+        closingAll = true
+        if colorPicker.isShown { colorPicker.close() }
+        closingAll = false
         super.close()
-        colorPicker.close()
     }
 
     func open() {
