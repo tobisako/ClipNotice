@@ -7,18 +7,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
-### Added
-- Windows: system tray icon (NotifyIcon) — always-available access to Settings/Quit
-- Windows: live preview while adjusting settings
-- Windows: self-contained EXE (no .NET runtime install required)
-- Windows: suppress showing pre-existing clipboard content on startup
-- Windows: accurate sticky note sizing via TextRenderer
-- docs/design/macos.md — macOS architecture design document
-- docs/design/windows.md — Windows architecture design document
+---
 
-### Fixed
-- .gitignore: exclude root-level `.build/` directory
-- mac/build.sh: use absolute paths so the script works from any working directory
+## [0.3.1] — 2026-05-11
+
+### Added (macOS)
+- Custom color picker — 32-color swatch grid + hex input (replaces system NSColorPanel)
+- Color picker title label: shows "文字の色" or "背景の色" to indicate which color is being edited
+- Color picker opens instantly on mouseDown (not mouseUp)
+- Color picker button toggles picker closed on repeat press
+- Settings auto-close timer resets whenever any control is adjusted (slider, checkbox)
+
+### Fixed (macOS)
+- Color picker z-order: now always appears above settings window (NSPanel at `.popUpMenu` level)
+- Preview sticky note respected wordWrap OFF (was still line-breaking due to `\n` in preview text)
+
+### Docs
+- docs/design/macos.md: corrected drag-to-move mechanism, NSWindowDelegate, Login Items note
 
 ---
 
