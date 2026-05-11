@@ -1,6 +1,6 @@
 import AppKit
 
-final class SettingsPanel: NSWindow, NSPopoverDelegate {
+final class SettingsPanel: NSWindow {
     static let shared = SettingsPanel()
 
     var onChanged: (() -> Void)?
@@ -9,8 +9,8 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     private let fontValueLabel = NSTextField(labelWithString: "13pt")
     private let textColorButton = SettingsPanel.makeColorButton()
     private let bgColorButton   = SettingsPanel.makeColorButton()
-    private let colorPicker = ColorPickerPopover()
-    private var closingAll = false
+    private let colorPicker = ColorPickerPanel()
+    private var isPerformingClose = false
     private let wordWrapCheckbox = NSButton(checkboxWithTitle: "改行する", target: nil, action: nil)
     private let dismissSlider = NSSlider(value: 6, minValue: 1, maxValue: 10, target: nil, action: nil)
     private let dismissValueLabel = NSTextField(labelWithString: "3秒")
@@ -31,7 +31,11 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
         setupUI()
         loadFromSettings()
 
-        colorPicker.delegate = self
+        colorPicker.onClose = { [weak self] in
+            guard let self, !self.isPerformingClose else { return }
+            self.makeKeyAndOrderFront(nil)
+            self.scheduleAutoClose()
+        }
     }
 
     private func setupUI() {
@@ -208,20 +212,22 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
 
     @objc private func openTextColorPicker() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
-        colorPicker.show(from: contentView!, current: Settings.shared.textColor) { [weak self] c in
+        colorPicker.onChange = { [weak self] c in
             Settings.shared.textColor = c
             self?.textColorButton.layer?.backgroundColor = c.cgColor
             self?.onChanged?()
         }
+        colorPicker.show(positionedRightOf: self, current: Settings.shared.textColor)
     }
 
     @objc private func openBgColorPicker() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
-        colorPicker.show(from: contentView!, current: Settings.shared.backgroundColor) { [weak self] c in
+        colorPicker.onChange = { [weak self] c in
             Settings.shared.backgroundColor = c
             self?.bgColorButton.layer?.backgroundColor = c.cgColor
             self?.onChanged?()
         }
+        colorPicker.show(positionedRightOf: self, current: Settings.shared.backgroundColor)
     }
 
     @objc private func wordWrapChanged() {
@@ -252,38 +258,14 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     }
 
     @objc private func timerClose() {
-        guard !colorPicker.isShown else { return }
+        guard !colorPicker.isVisible else { return }
         close()
     }
 
-    func popoverWillShow(_ notification: Notification) {
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
-    }
-
-    func popoverDidShow(_ notification: Notification) {
-        // addChildWindow guarantees the popover appears above its parent regardless of level.
-        // Setting window.level alone does not work on NSPopover's private _NSPopoverWindow.
-        if let pickerWindow = colorPicker.contentViewController?.view.window {
-            addChildWindow(pickerWindow, ordered: .above)
-        }
-    }
-
-    func popoverWillClose(_ notification: Notification) {
-        if let pickerWindow = colorPicker.contentViewController?.view.window {
-            removeChildWindow(pickerWindow)
-        }
-    }
-
-    func popoverDidClose(_ notification: Notification) {
-        guard isVisible, !closingAll else { return }
-        makeKeyAndOrderFront(nil)
-        scheduleAutoClose()
-    }
-
     override func close() {
-        closingAll = true
-        if colorPicker.isShown { colorPicker.close() }
-        closingAll = false
+        isPerformingClose = true
+        if colorPicker.isVisible { colorPicker.hide() }
+        isPerformingClose = false
         super.close()
     }
 

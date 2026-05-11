@@ -72,10 +72,10 @@ AppDelegate
     │
     ├── rightClick → NSMenu ["設定...", "Quit ClipNotice"]
     │
-    └── SettingsPanel (singleton, level: .modalPanel)
+    └── SettingsPanel (singleton, level: .modalPanel = 8)
         ├── fontSize: 8–48pt slider
-        ├── textColor: 色ボタン → ColorPickerPopover (カスタム32色 + hex入力)
-        ├── backgroundColor: 色ボタン → ColorPickerPopover
+        ├── textColor: 色ボタン → ColorPickerPanel (カスタム32色 + hex入力)
+        ├── backgroundColor: 色ボタン → ColorPickerPanel
         ├── wordWrap: checkbox
         ├── dismissDelay: 0.5–5秒 スライダー (0.5秒刻み)
         ├── settingsAutoCloseSecs: 2/4/6/8/10秒 スライダー (デフォルト8秒)
@@ -85,19 +85,21 @@ AppDelegate
         │   └── makeKeyAndOrderFront → loadFromSettings → scheduleAutoClose
         │
         ├── timerClose() ← scheduleAutoClose が登録するセレクタ
-        │   ├── colorPicker.isShown == true → return (カラーピッカー中はスキップ)
-        │   └── colorPicker.isShown == false → close()
+        │   ├── colorPicker.isVisible == true → return (カラーピッカー中はスキップ)
+        │   └── colorPicker.isVisible == false → close()
         │
         ├── close() ← X ボタン / プログラム的クローズ
-        │   ├── colorPicker.close() (アンカー表示中に閉じる必要あり)
+        │   ├── isPerformingClose = true
+        │   ├── colorPicker.hide() (先にピッカーを閉じる)
+        │   ├── isPerformingClose = false
         │   └── super.close()
         │
-        └── ColorPickerPopover (NSPopover, child window of SettingsPanel)
-            ├── 設定ウィンドウの右隣に表示 (preferredEdge: .maxX, anchor: contentView)
-            ├── popoverWillShow → timerClose キャンセル (タイマー一時停止)
-            ├── popoverDidShow → addChildWindow(.above) で設定パネルより前面を保証
-            ├── popoverWillClose → removeChildWindow
-            └── popoverDidClose → scheduleAutoClose (タイマー再開)
+        └── ColorPickerPanel (NSPanel, level: .popUpMenu = 101)
+            ├── 設定ウィンドウの右隣に表示 (anchor.frame.maxX + 8)
+            ├── show() → timerClose キャンセル + orderFront + clickMonitor 開始
+            ├── hide() → clickMonitor 停止 + orderOut + onClose?()
+            ├── onClose callback → isPerformingClose == false → scheduleAutoClose
+            └── click-outside → NSEvent.addLocalMonitorForEvents で検知 → hide()
 ```
 
 ## Tech Stack
@@ -179,23 +181,37 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
    - `dismissWorkItem.cancel()`（cancelTracking予約をキャンセル）
    - 即座に `close()`
 
+## Window Z-Order 保証（必須仕様）
+
+**ピッカー ＞ 設定 ＞ 付箋** — この順番で必ず重なる。ピッカーが最前面。
+
+| ウィンドウ | クラス | level | 数値 |
+|-----------|--------|-------|------|
+| カラーピッカー | `ColorPickerPanel` (NSPanel) | `.popUpMenu` | 101 |
+| 設定パネル | `SettingsPanel` (NSWindow) | `.modalPanel` | 8 |
+| 付箋 | `StickyNotePanel` (NSPanel) | `.floating` | 3 |
+
+**実装方針**: NSPopover は内部ウィンドウ(`_NSPopoverWindow`)の level を AppKit が上書きするため、
+`window.level` 設定も `addChildWindow` も無効。`NSPanel` に置き換え `level = .popUpMenu` を直接指定することで保証する。
+
 ## Color Picker Lifetime
 
 設定パネルの自動クローズタイマーとカラーピッカーの関係:
 
 1. 色ボタンをクリック → `openTextColorPicker()` / `openBgColorPicker()`
    - `timerClose` セレクタのペンディングリクエストをキャンセル
-   - `colorPicker.show()` でピッカー表示
-2. `popoverWillShow` → `timerClose` 追加キャンセル（タイマー完全停止）
-3. `popoverDidShow` → `addChildWindow(pickerWindow, ordered: .above)` で設定パネルより前面を保証
-   （`window.level` 設定は NSPopover 内部ウィンドウでは AppKit に上書きされるため無効）
-4. ピッカーが開いている間に自動クローズタイマーが発火した場合:
-   - `timerClose()` 呼ばれる → `colorPicker.isShown == true` → **return（スキップ）**
-5. ユーザーがピッカーを閉じる（外側クリック / Escape）:
-   - `popoverDidClose` → `scheduleAutoClose()` でタイマー再開
+   - `colorPicker.show(positionedRightOf: self)` でピッカー表示（設定の右隣）
+   - `NSEvent.addLocalMonitorForEvents` でclick-outside監視開始
+2. ピッカーが開いている間に自動クローズタイマーが発火した場合:
+   - `timerClose()` 呼ばれる → `colorPicker.isVisible == true` → **return（スキップ）**
+3. ユーザーがピッカーを閉じる（外側クリック）:
+   - click-outside検知 → `colorPicker.hide()` → `onClose?()` コールバック
+   - `isPerformingClose == false` → `scheduleAutoClose()` でタイマー再開
    - 設定パネルが前面に出る（`makeKeyAndOrderFront`）
-6. X ボタンで設定を強制クローズ:
-   - `close()` 直接呼ばれる → `isShown` チェックなし → ピッカー→設定 両方クローズ
+4. X ボタンで設定を強制クローズ:
+   - `close()` 直接呼ばれる → `isPerformingClose = true`
+   - `colorPicker.hide()` → `onClose?()` コールバック → `isPerformingClose == true` → スケジュールしない
+   - `super.close()`
 
 **重要**: `timerClose` と `close` は別セレクタ。`timerClose` のみカラーピッカー中をガード。X ボタンは `close()` を直接呼ぶので常にクローズされる。
 

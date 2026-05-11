@@ -1,25 +1,63 @@
 import AppKit
 
-// Custom color picker: 32-color swatch grid + hex input. No NSColorPanel used.
-final class ColorPickerPopover: NSPopover {
+// NSPanel at .popUpMenu level (101) guarantees z-order:
+//   ColorPickerPanel(101) > SettingsPanel(.modalPanel=8) > StickyNotePanel(.floating=3)
+// NSPopover cannot achieve this — AppKit overrides _NSPopoverWindow.level regardless of
+// window.level assignment or addChildWindow calls.
+final class ColorPickerPanel: NSPanel {
     var onChange: ((NSColor) -> Void)?
+    var onClose: (() -> Void)?
     private let vc = ColorPickerVC()
+    private var clickMonitor: Any?
 
-    override init() {
-        super.init()
-        contentViewController = vc
-        behavior = .transient
+    override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing: NSWindow.BackingStoreType, defer flag: Bool) {
+        super.init(contentRect: contentRect, styleMask: style, backing: backing, defer: flag)
     }
 
-    required init?(coder: NSCoder) { fatalError() }
-
-    func show(from view: NSView, current: NSColor, onChange: @escaping (NSColor) -> Void) {
-        vc.setInitial(current)
-        self.onChange = onChange
+    convenience init() {
+        self.init(
+            contentRect: .zero,
+            styleMask: [.nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        level = .popUpMenu
+        hasShadow = true
+        isReleasedWhenClosed = false
+        isMovable = false
+        contentViewController = vc
         vc.onSelect = { [weak self] c in self?.onChange?(c) }
-        if !isShown {
-            show(relativeTo: view.bounds, of: view, preferredEdge: .maxX)
+        setContentSize(vc.preferredSize)
+    }
+
+    func show(positionedRightOf anchor: NSWindow, current: NSColor) {
+        guard !isVisible else { return }
+        vc.setInitial(current)
+        let size = vc.preferredSize
+        let x = anchor.frame.maxX + 8
+        let y = anchor.frame.midY - size.height / 2
+        setFrame(NSRect(origin: NSPoint(x: x, y: y), size: size), display: false)
+        orderFront(nil)
+        startClickMonitor()
+    }
+
+    func hide() {
+        guard isVisible else { return }
+        stopClickMonitor()
+        orderOut(nil)
+        onClose?()
+    }
+
+    private func startClickMonitor() {
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self, self.isVisible else { return event }
+            if event.window !== self { self.hide() }
+            return event
         }
+    }
+
+    private func stopClickMonitor() {
+        if let m = clickMonitor { NSEvent.removeMonitor(m); clickMonitor = nil }
     }
 }
 
@@ -69,6 +107,18 @@ private final class ColorPickerVC: NSViewController {
          NSColor(red: 1,    green: 0.4,  blue: 0.7, alpha: 1),
          NSColor(red: 1,    green: 0.75, blue: 0.87, alpha: 1)],
     ]
+
+    var preferredSize: NSSize {
+        let swatchSize: CGFloat = 24
+        let gap: CGFloat = 4
+        let cols = Self.palette[0].count
+        let rows = Self.palette.count
+        let inset: CGFloat = 8
+        let width  = inset + CGFloat(cols) * swatchSize + CGFloat(cols - 1) * gap + inset
+        let swatchH = CGFloat(rows) * swatchSize + CGFloat(rows - 1) * gap
+        let height = inset + swatchH + gap + 24 + inset
+        return NSSize(width: width, height: height)
+    }
 
     func setInitial(_ color: NSColor) {
         hexField.stringValue = color.hexString
