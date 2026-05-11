@@ -1,7 +1,7 @@
 # ClipNotice — macOS Design Document
 
 Generated: 2026-05-10 by tobisako (/office-hours Builder Mode)
-Last updated: 2026-05-11
+Last updated: 2026-05-11 (ColorPickerPanel title追加)
 
 ## Problem
 
@@ -96,7 +96,8 @@ AppDelegate
         │
         └── ColorPickerPanel (NSPanel, level: .popUpMenu = 101)
             ├── 設定ウィンドウの右隣に表示 (anchor.frame.maxX + 8)
-            ├── show() → timerClose キャンセル + orderFront + clickMonitor 開始
+            ├── 上部タイトルラベル: "文字の色" / "背景の色"（show()のtitle引数で切替）
+            ├── show(positionedRightOf:current:title:) → timerClose キャンセル + orderFront + clickMonitor 開始
             ├── hide() → clickMonitor 停止 + orderOut + onClose?()
             ├── onClose callback → isPerformingClose == false → scheduleAutoClose
             └── click-outside → NSEvent.addLocalMonitorForEvents で検知 → hide()
@@ -200,7 +201,8 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 
 1. 色ボタンをクリック → `openTextColorPicker()` / `openBgColorPicker()`
    - `timerClose` セレクタのペンディングリクエストをキャンセル
-   - `colorPicker.show(positionedRightOf: self)` でピッカー表示（設定の右隣）
+   - `colorPicker.show(positionedRightOf: self, current:, title: "文字の色"/"背景の色")` でピッカー表示
+   - ピッカー上部に「文字の色」または「背景の色」のタイトルラベル表示
    - `NSEvent.addLocalMonitorForEvents` でclick-outside監視開始
 2. ピッカーが開いている間に自動クローズタイマーが発火した場合:
    - `timerClose()` 呼ばれる → `colorPicker.isVisible == true` → **return（スキップ）**
