@@ -11,6 +11,7 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate {
     private let label: NSTextField
     private var dragStartLocation: NSPoint?
     private var customOrigin: NSPoint?
+    private var menuIsOpen = false
 
     override init(
         contentRect: NSRect,
@@ -119,14 +120,11 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate {
             setFrameOrigin(NSPoint(x: x, y: y))
         }
 
+        alphaValue = 1
+        ignoresMouseEvents = false
         dismissWorkItem?.cancel()
         orderFrontRegardless()
-
-        let work = DispatchWorkItem { [weak self] in
-            self?.close()
-        }
-        dismissWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Settings.shared.dismissDelay, execute: work)
+        scheduleDismiss()
     }
 
     @objc private func openSettings() {
@@ -137,13 +135,34 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        dismissWorkItem?.cancel()
+        menuIsOpen = true
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        let work = DispatchWorkItem { [weak self] in self?.close() }
+        menuIsOpen = false
+        if alphaValue == 0 {
+            dismissWorkItem?.cancel()
+            close()
+        }
+    }
+
+    private func scheduleDismiss() {
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            if self.menuIsOpen {
+                self.alphaValue = 0
+                self.ignoresMouseEvents = true
+                let autoClose = DispatchWorkItem { [weak self] in
+                    self?.contentView?.menu?.cancelTracking()
+                }
+                self.dismissWorkItem = autoClose
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: autoClose)
+            } else {
+                self.close()
+            }
+        }
         dismissWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Settings.shared.dismissDelay, execute: work)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -158,9 +177,7 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate {
             close()
         } else {
             customOrigin = frame.origin
-            let work = DispatchWorkItem { [weak self] in self?.close() }
-            dismissWorkItem = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + Settings.shared.dismissDelay, execute: work)
+            scheduleDismiss()
         }
         dragStartLocation = nil
     }

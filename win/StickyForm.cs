@@ -17,6 +17,7 @@ sealed class StickyForm : Form
     Point _formOriginAtDragStart;
     bool _dragging;
     Point? _savedLocation;
+    bool _menuOpen;
 
     public StickyForm()
     {
@@ -50,20 +51,15 @@ sealed class StickyForm : Form
         });
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit ClipNotice", null, (_, _) => Application.Exit());
-        menu.Opened += (_, _) => _timer?.Stop();
-        menu.Closed += (_, _) =>
-        {
-            _timer?.Dispose();
-            _timer = new System.Windows.Forms.Timer { Interval = 2000 };
-            _timer.Tick += (_, _) => { _timer.Stop(); Hide(); };
-            _timer.Start();
-        };
+        menu.Opened += (_, _) => { _menuOpen = true; _timer?.Stop(); };
+        menu.Closed += (_, _) => { _menuOpen = false; if (Opacity == 0) { Opacity = 0.95; Hide(); } };
         ContextMenuStrip = menu;
         _label.ContextMenuStrip = menu;
     }
 
     public void ShowText(string text)
     {
+        Opacity = 0.95;
         var display = text.Length > MaxTextLength
             ? text[..MaxTextLength] + "…"
             : text;
@@ -93,11 +89,7 @@ sealed class StickyForm : Form
             Screen.PrimaryScreen!.WorkingArea.Left + Mar,
             Screen.PrimaryScreen!.WorkingArea.Top + Mar);
 
-        _timer?.Stop();
-        _timer?.Dispose();
-        _timer = new System.Windows.Forms.Timer { Interval = Settings.DismissMs };
-        _timer.Tick += (_, _) => { _timer.Stop(); Hide(); };
-        _timer.Start();
+        StartDismissTimer();
 
         Show();
         BringToFront();
@@ -134,12 +126,37 @@ sealed class StickyForm : Form
             else
             {
                 _savedLocation = Location;
-                _timer?.Dispose();
-                _timer = new System.Windows.Forms.Timer { Interval = Settings.DismissMs };
-                _timer.Tick += (_, _) => { _timer.Stop(); Hide(); };
-                _timer.Start();
+                StartDismissTimer();
             }
         }
         _dragging = false;
+    }
+
+    void StartDismissTimer()
+    {
+        _timer?.Dispose();
+        _timer = new System.Windows.Forms.Timer { Interval = Settings.DismissMs };
+        _timer.Tick += (_, _) =>
+        {
+            _timer.Stop();
+            if (_menuOpen)
+            {
+                Opacity = 0;
+                var closeTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+                closeTimer.Tick += (_, _) =>
+                {
+                    closeTimer.Stop();
+                    closeTimer.Dispose();
+                    Opacity = 0.95;
+                    Hide();
+                };
+                closeTimer.Start();
+            }
+            else
+            {
+                Hide();
+            }
+        };
+        _timer.Start();
     }
 }
