@@ -9,6 +9,7 @@ final class StickyNotePanel: NSPanel {
 
     private var dismissWorkItem: DispatchWorkItem?
     private let label: NSTextField
+    private var dragStartLocation: NSPoint?
 
     override init(
         contentRect: NSRect,
@@ -132,7 +133,16 @@ final class StickyNotePanel: NSPanel {
     }
 
     override func mouseDown(with event: NSEvent) {
-        dismissWorkItem?.cancel()
-        close()
+        dragStartLocation = event.locationInWindow
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let start = dragStartLocation else { return }
+        let d = event.locationInWindow
+        if hypot(d.x - start.x, d.y - start.y) < 5 {
+            dismissWorkItem?.cancel()
+            close()
+        }
+        dragStartLocation = nil
     }
 }

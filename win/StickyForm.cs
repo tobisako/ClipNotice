@@ -14,6 +14,9 @@ sealed class StickyForm : Form
 
     readonly Label _label;
     System.Windows.Forms.Timer? _timer;
+    Point _screenDragStart;
+    Point _formOriginAtDragStart;
+    bool _dragging;
 
     public StickyForm()
     {
@@ -31,8 +34,12 @@ sealed class StickyForm : Form
         };
         Controls.Add(_label);
 
-        MouseClick += (_, _) => Hide();
-        _label.MouseClick += (_, _) => Hide();
+        MouseDown += OnStickyMouseDown;
+        MouseMove += OnStickyMouseMove;
+        MouseUp += OnStickyMouseUp;
+        _label.MouseDown += OnStickyMouseDown;
+        _label.MouseMove += OnStickyMouseMove;
+        _label.MouseUp += OnStickyMouseUp;
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("設定...", null, (_, _) =>
@@ -85,5 +92,31 @@ sealed class StickyForm : Form
 
         Show();
         BringToFront();
+    }
+
+    void OnStickyMouseDown(object? s, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left) return;
+        _screenDragStart = Cursor.Position;
+        _formOriginAtDragStart = Location;
+        _dragging = false;
+    }
+
+    void OnStickyMouseMove(object? s, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left) return;
+        var dx = Cursor.Position.X - _screenDragStart.X;
+        var dy = Cursor.Position.Y - _screenDragStart.Y;
+        if (!_dragging && (Math.Abs(dx) > 4 || Math.Abs(dy) > 4))
+            _dragging = true;
+        if (_dragging)
+            Location = new Point(_formOriginAtDragStart.X + dx, _formOriginAtDragStart.Y + dy);
+    }
+
+    void OnStickyMouseUp(object? s, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left && !_dragging)
+            Hide();
+        _dragging = false;
     }
 }
