@@ -74,12 +74,28 @@ AppDelegate
     │
     └── SettingsPanel (singleton, level: .modalPanel)
         ├── fontSize: 8–48pt slider
-        ├── textColor: NSColorWell
-        ├── backgroundColor: NSColorWell
+        ├── textColor: 色ボタン → ColorPickerPopover (カスタム32色 + hex入力)
+        ├── backgroundColor: 色ボタン → ColorPickerPopover
         ├── wordWrap: checkbox
         ├── dismissDelay: 0.5–5秒 スライダー (0.5秒刻み)
+        ├── settingsAutoCloseSecs: 2/4/6/8/10秒 スライダー (デフォルト8秒)
         ├── live preview on change
-        └── 開いてから10秒後に自動クローズ
+        │
+        ├── open()
+        │   └── makeKeyAndOrderFront → loadFromSettings → scheduleAutoClose
+        │
+        ├── timerClose() ← scheduleAutoClose が登録するセレクタ
+        │   ├── colorPicker.isShown == true → return (カラーピッカー中はスキップ)
+        │   └── colorPicker.isShown == false → close()
+        │
+        ├── close() ← X ボタン / プログラム的クローズ
+        │   ├── colorPicker.close() (アンカー表示中に閉じる必要あり)
+        │   └── super.close()
+        │
+        └── ColorPickerPopover (NSPopover, level: modalPanel+1)
+            ├── 設定ウィンドウの右隣に表示 (preferredEdge: .maxX, anchor: contentView)
+            ├── popoverWillShow → timerClose キャンセル (タイマー一時停止)
+            └── popoverDidClose → scheduleAutoClose (タイマー再開)
 ```
 
 ## Tech Stack
@@ -135,6 +151,7 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 | `backgroundColor` | Data (NSColor archive) | 薄黄色 |
 | `wordWrap` | Bool | true |
 | `dismissDelay` | Double | 3.0 |
+| `settingsAutoCloseSecs` | Int | 8 |
 
 ## Drag-to-Move
 
@@ -159,6 +176,25 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 3. ユーザーがメニューを手動で閉じた場合（`menuDidClose`、`alphaValue == 0`）:
    - `dismissWorkItem.cancel()`（cancelTracking予約をキャンセル）
    - 即座に `close()`
+
+## Color Picker Lifetime
+
+設定パネルの自動クローズタイマーとカラーピッカーの関係:
+
+1. 色ボタンをクリック → `openTextColorPicker()` / `openBgColorPicker()`
+   - `timerClose` セレクタのペンディングリクエストをキャンセル
+   - `colorPicker.show()` でピッカー表示
+2. `popoverWillShow` → `timerClose` 追加キャンセル（タイマー完全停止）
+3. `popoverDidShow` → popover window level を `modalPanel+1` に設定（設定パネルより前面）
+4. ピッカーが開いている間に自動クローズタイマーが発火した場合:
+   - `timerClose()` 呼ばれる → `colorPicker.isShown == true` → **return（スキップ）**
+5. ユーザーがピッカーを閉じる（外側クリック / Escape）:
+   - `popoverDidClose` → `scheduleAutoClose()` でタイマー再開
+   - 設定パネルが前面に出る（`makeKeyAndOrderFront`）
+6. X ボタンで設定を強制クローズ:
+   - `close()` 直接呼ばれる → `isShown` チェックなし → ピッカー→設定 両方クローズ
+
+**重要**: `timerClose` と `close` は別セレクタ。`timerClose` のみカラーピッカー中をガード。X ボタンは `close()` を直接呼ぶので常にクローズされる。
 
 ## Edge Cases Handled
 
