@@ -99,6 +99,7 @@ sealed class StickyForm : Form
     void OnStickyMouseDown(object? s, MouseEventArgs e)
     {
         if (e.Button != MouseButtons.Left) return;
+        _timer?.Stop();
         _screenDragStart = Cursor.Position;
         _formOriginAtDragStart = Location;
         _dragging = false;
@@ -120,9 +121,17 @@ sealed class StickyForm : Form
         if (e.Button == MouseButtons.Left)
         {
             if (!_dragging)
+            {
                 Hide();
+            }
             else
+            {
                 _savedLocation = Location;
+                _timer?.Dispose();
+                _timer = new System.Windows.Forms.Timer { Interval = DismissMs };
+                _timer.Tick += (_, _) => { _timer.Stop(); Hide(); };
+                _timer.Start();
+            }
         }
         _dragging = false;
     }

@@ -136,6 +136,7 @@ final class StickyNotePanel: NSPanel {
     }
 
     override func mouseDown(with event: NSEvent) {
+        dismissWorkItem?.cancel()
         dragStartLocation = NSEvent.mouseLocation
     }
 
@@ -143,10 +144,12 @@ final class StickyNotePanel: NSPanel {
         guard let start = dragStartLocation else { return }
         let d = NSEvent.mouseLocation
         if hypot(d.x - start.x, d.y - start.y) < 5 {
-            dismissWorkItem?.cancel()
             close()
         } else {
             customOrigin = frame.origin
+            let work = DispatchWorkItem { [weak self] in self?.close() }
+            dismissWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.dismissDelay, execute: work)
         }
         dragStartLocation = nil
     }
