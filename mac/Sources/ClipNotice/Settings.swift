@@ -27,6 +27,14 @@ final class Settings {
         set { defaults.set(newValue, forKey: "wordWrap") }
     }
 
+    var settingsAutoCloseSecs: Int {
+        get {
+            let v = defaults.integer(forKey: "settingsAutoCloseSecs")
+            return [2, 4, 6, 8, 10].contains(v) ? v : 8
+        }
+        set { defaults.set(newValue, forKey: "settingsAutoCloseSecs") }
+    }
+
     var dismissDelay: TimeInterval {
         get {
             let v = defaults.double(forKey: "dismissDelay")

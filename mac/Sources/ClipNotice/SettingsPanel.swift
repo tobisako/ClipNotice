@@ -12,10 +12,12 @@ final class SettingsPanel: NSWindow {
     private let wordWrapCheckbox = NSButton(checkboxWithTitle: "改行する", target: nil, action: nil)
     private let dismissSlider = NSSlider(value: 6, minValue: 1, maxValue: 10, target: nil, action: nil)
     private let dismissValueLabel = NSTextField(labelWithString: "3秒")
+    private let autoCloseSlider = NSSlider(value: 8, minValue: 2, maxValue: 10, target: nil, action: nil)
+    private let autoCloseValueLabel = NSTextField(labelWithString: "8秒")
 
     private init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 250),
+            contentRect: NSRect(x: 0, y: 0, width: 340, height: 290),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -26,6 +28,12 @@ final class SettingsPanel: NSWindow {
         center()
         setupUI()
         loadFromSettings()
+
+        let nc = NotificationCenter.default
+        nc.addObserver(self, selector: #selector(colorPanelBecameKey),
+            name: NSWindow.didBecomeKeyNotification, object: NSColorPanel.shared)
+        nc.addObserver(self, selector: #selector(colorPanelClosed),
+            name: NSWindow.willCloseNotification, object: NSColorPanel.shared)
     }
 
     private func setupUI() {
@@ -61,7 +69,16 @@ final class SettingsPanel: NSWindow {
         dismissSlider.action = #selector(dismissChanged)
         dismissValueLabel.alignment = .right
 
-        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox, dismissLabel, dismissSlider, dismissValueLabel] {
+        // --- Settings auto-close row ---
+        let autoCloseLabel = label("設定タイマー")
+        autoCloseSlider.isContinuous = true
+        autoCloseSlider.numberOfTickMarks = 5
+        autoCloseSlider.allowsTickMarkValuesOnly = true
+        autoCloseSlider.target = self
+        autoCloseSlider.action = #selector(autoCloseChanged)
+        autoCloseValueLabel.alignment = .right
+
+        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox, dismissLabel, dismissSlider, dismissValueLabel, autoCloseLabel, autoCloseSlider, autoCloseValueLabel] {
             v.translatesAutoresizingMaskIntoConstraints = false
             cv.addSubview(v)
         }
@@ -122,6 +139,20 @@ final class SettingsPanel: NSWindow {
             dismissValueLabel.trailingAnchor.constraint(equalTo: cv.trailingAnchor, constant: -p),
             dismissValueLabel.centerYAnchor.constraint(equalTo: dismissSlider.centerYAnchor),
             dismissValueLabel.widthAnchor.constraint(equalToConstant: 42),
+
+            // Row 6: settings auto-close
+            autoCloseLabel.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p),
+            autoCloseLabel.topAnchor.constraint(equalTo: dismissLabel.bottomAnchor, constant: rowH),
+            autoCloseLabel.widthAnchor.constraint(equalToConstant: labelW),
+
+            autoCloseSlider.leadingAnchor.constraint(equalTo: autoCloseLabel.trailingAnchor, constant: 8),
+            autoCloseSlider.centerYAnchor.constraint(equalTo: autoCloseLabel.centerYAnchor),
+            autoCloseSlider.trailingAnchor.constraint(equalTo: cv.trailingAnchor, constant: -p - 50),
+
+            autoCloseValueLabel.leadingAnchor.constraint(equalTo: autoCloseSlider.trailingAnchor, constant: 8),
+            autoCloseValueLabel.trailingAnchor.constraint(equalTo: cv.trailingAnchor, constant: -p),
+            autoCloseValueLabel.centerYAnchor.constraint(equalTo: autoCloseSlider.centerYAnchor),
+            autoCloseValueLabel.widthAnchor.constraint(equalToConstant: 42),
         ])
     }
 
@@ -140,6 +171,8 @@ final class SettingsPanel: NSWindow {
         wordWrapCheckbox.state = s.wordWrap ? .on : .off
         dismissSlider.doubleValue = s.dismissDelay * 2
         dismissValueLabel.stringValue = Self.formatDelay(s.dismissDelay)
+        autoCloseSlider.doubleValue = Double(s.settingsAutoCloseSecs)
+        autoCloseValueLabel.stringValue = "\(s.settingsAutoCloseSecs)秒"
     }
 
     @objc private func fontChanged() {
@@ -170,14 +203,35 @@ final class SettingsPanel: NSWindow {
         dismissValueLabel.stringValue = Self.formatDelay(secs)
     }
 
+    @objc private func autoCloseChanged() {
+        let v = Int(autoCloseSlider.doubleValue)
+        Settings.shared.settingsAutoCloseSecs = v
+        autoCloseValueLabel.stringValue = "\(v)秒"
+        scheduleAutoClose()
+    }
+
     private static func formatDelay(_ secs: TimeInterval) -> String {
         secs.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(secs))秒" : "\(secs)秒"
+    }
+
+    private func scheduleAutoClose() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+        perform(#selector(close), with: nil, afterDelay: Double(Settings.shared.settingsAutoCloseSecs))
+    }
+
+    @objc private func colorPanelBecameKey() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+    }
+
+    @objc private func colorPanelClosed() {
+        guard isVisible else { return }
+        makeKeyAndOrderFront(nil)
+        scheduleAutoClose()
     }
 
     func open() {
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
-        NSObject.cancelPreviousPerformRequests(withTarget: self)
-        perform(#selector(close), with: nil, afterDelay: 10)
+        scheduleAutoClose()
     }
 }
