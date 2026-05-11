@@ -212,6 +212,7 @@ final class SettingsPanel: NSWindow {
     }
 
     @objc private func openTextColorPicker() {
+        if colorPicker.isVisible { colorPicker.hide(); return }
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
         colorPicker.onChange = { [weak self] c in
             Settings.shared.textColor = c
@@ -222,6 +223,7 @@ final class SettingsPanel: NSWindow {
     }
 
     @objc private func openBgColorPicker() {
+        if colorPicker.isVisible { colorPicker.hide(); return }
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
         colorPicker.onChange = { [weak self] c in
             Settings.shared.backgroundColor = c
