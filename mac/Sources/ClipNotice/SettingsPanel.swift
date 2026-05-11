@@ -207,7 +207,7 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     }
 
     @objc private func openTextColorPicker() {
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
         colorPicker.show(from: contentView!, current: Settings.shared.textColor) { [weak self] c in
             Settings.shared.textColor = c
             self?.textColorButton.layer?.backgroundColor = c.cgColor
@@ -216,7 +216,7 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     }
 
     @objc private func openBgColorPicker() {
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
         colorPicker.show(from: contentView!, current: Settings.shared.backgroundColor) { [weak self] c in
             Settings.shared.backgroundColor = c
             self?.bgColorButton.layer?.backgroundColor = c.cgColor
@@ -247,12 +247,17 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     }
 
     private func scheduleAutoClose() {
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
-        perform(#selector(close), with: nil, afterDelay: Double(Settings.shared.settingsAutoCloseSecs))
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
+        perform(#selector(timerClose), with: nil, afterDelay: Double(Settings.shared.settingsAutoCloseSecs))
+    }
+
+    @objc private func timerClose() {
+        guard !colorPicker.isShown else { return }
+        close()
     }
 
     func popoverWillShow(_ notification: Notification) {
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timerClose), object: nil)
     }
 
     func popoverDidShow(_ notification: Notification) {
