@@ -20,6 +20,7 @@ final class SettingsPanel: NSWindow {
         )
         title = "ClipNotice 設定"
         isReleasedWhenClosed = false
+        level = .modalPanel
         center()
         setupUI()
         loadFromSettings()
