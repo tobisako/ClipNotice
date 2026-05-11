@@ -187,6 +187,7 @@ final class SettingsPanel: NSWindow {
         b.isBordered = false
         b.title = ""
         b.wantsLayer = true
+        b.sendAction(on: .leftMouseDown)
         return b
     }
 
