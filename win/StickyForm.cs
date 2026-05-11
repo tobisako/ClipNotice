@@ -17,6 +17,7 @@ sealed class StickyForm : Form
     Point _screenDragStart;
     Point _formOriginAtDragStart;
     bool _dragging;
+    Point? _savedLocation;
 
     public StickyForm()
     {
@@ -81,8 +82,9 @@ sealed class StickyForm : Form
 
         Size = new Size(Math.Max(w, 80), Math.Max(h, 40));
 
-        var area = Screen.PrimaryScreen!.WorkingArea;
-        Location = new Point(area.Left + Mar, area.Top + Mar);
+        Location = _savedLocation ?? new Point(
+            Screen.PrimaryScreen!.WorkingArea.Left + Mar,
+            Screen.PrimaryScreen!.WorkingArea.Top + Mar);
 
         _timer?.Stop();
         _timer?.Dispose();
@@ -115,8 +117,13 @@ sealed class StickyForm : Form
 
     void OnStickyMouseUp(object? s, MouseEventArgs e)
     {
-        if (e.Button == MouseButtons.Left && !_dragging)
-            Hide();
+        if (e.Button == MouseButtons.Left)
+        {
+            if (!_dragging)
+                Hide();
+            else
+                _savedLocation = Location;
+        }
         _dragging = false;
     }
 }

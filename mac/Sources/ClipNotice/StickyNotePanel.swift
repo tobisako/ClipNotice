@@ -10,6 +10,7 @@ final class StickyNotePanel: NSPanel {
     private var dismissWorkItem: DispatchWorkItem?
     private let label: NSTextField
     private var dragStartLocation: NSPoint?
+    private var customOrigin: NSPoint?
 
     override init(
         contentRect: NSRect,
@@ -109,7 +110,9 @@ final class StickyNotePanel: NSPanel {
         let size = NSSize(width: max(panelWidth, 100), height: max(50, height))
         setContentSize(size)
 
-        if let screen = NSScreen.main {
+        if let origin = customOrigin {
+            setFrameOrigin(origin)
+        } else if let screen = NSScreen.main {
             let x = screen.visibleFrame.minX + Self.margin
             let y = screen.visibleFrame.maxY - size.height - Self.margin
             setFrameOrigin(NSPoint(x: x, y: y))
@@ -142,6 +145,8 @@ final class StickyNotePanel: NSPanel {
         if hypot(d.x - start.x, d.y - start.y) < 5 {
             dismissWorkItem?.cancel()
             close()
+        } else {
+            customOrigin = frame.origin
         }
         dragStartLocation = nil
     }
