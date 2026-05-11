@@ -1,14 +1,15 @@
 import AppKit
 
-final class SettingsPanel: NSWindow {
+final class SettingsPanel: NSWindow, NSPopoverDelegate {
     static let shared = SettingsPanel()
 
     var onChanged: (() -> Void)?
 
     private let fontSlider = NSSlider(value: 13, minValue: 8, maxValue: 48, target: nil, action: nil)
     private let fontValueLabel = NSTextField(labelWithString: "13pt")
-    private let textColorWell = NSColorWell()
-    private let bgColorWell = NSColorWell()
+    private let textColorButton = SettingsPanel.makeColorButton()
+    private let bgColorButton   = SettingsPanel.makeColorButton()
+    private let colorPicker = ColorPickerPopover()
     private let wordWrapCheckbox = NSButton(checkboxWithTitle: "改行する", target: nil, action: nil)
     private let dismissSlider = NSSlider(value: 6, minValue: 1, maxValue: 10, target: nil, action: nil)
     private let dismissValueLabel = NSTextField(labelWithString: "3秒")
@@ -29,11 +30,7 @@ final class SettingsPanel: NSWindow {
         setupUI()
         loadFromSettings()
 
-        let nc = NotificationCenter.default
-        nc.addObserver(self, selector: #selector(colorPanelBecameKey),
-            name: NSWindow.didBecomeKeyNotification, object: NSColorPanel.shared)
-        nc.addObserver(self, selector: #selector(colorPanelClosed),
-            name: NSWindow.willCloseNotification, object: NSColorPanel.shared)
+        colorPicker.delegate = self
     }
 
     private func setupUI() {
@@ -48,13 +45,13 @@ final class SettingsPanel: NSWindow {
 
         // --- Text color row ---
         let textLabel = label("文字の色")
-        textColorWell.target = self
-        textColorWell.action = #selector(textColorChanged)
+        textColorButton.target = self
+        textColorButton.action = #selector(openTextColorPicker)
 
         // --- Background color row ---
         let bgLabel = label("背景の色")
-        bgColorWell.target = self
-        bgColorWell.action = #selector(bgColorChanged)
+        bgColorButton.target = self
+        bgColorButton.action = #selector(openBgColorPicker)
 
         // --- Word wrap checkbox ---
         wordWrapCheckbox.target = self
@@ -84,7 +81,7 @@ final class SettingsPanel: NSWindow {
         autoCloseSlider.action = #selector(autoCloseChanged)
         autoCloseValueLabel.alignment = .right
 
-        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox, timerSectionLabel, dismissLabel, dismissSlider, dismissValueLabel, autoCloseLabel, autoCloseSlider, autoCloseValueLabel] {
+        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorButton, bgLabel, bgColorButton, wordWrapCheckbox, timerSectionLabel, dismissLabel, dismissSlider, dismissValueLabel, autoCloseLabel, autoCloseSlider, autoCloseValueLabel] {
             v.translatesAutoresizingMaskIntoConstraints = false
             cv.addSubview(v)
         }
@@ -113,20 +110,20 @@ final class SettingsPanel: NSWindow {
             textLabel.topAnchor.constraint(equalTo: fontLabel.bottomAnchor, constant: rowH),
             textLabel.widthAnchor.constraint(equalToConstant: labelW),
 
-            textColorWell.leadingAnchor.constraint(equalTo: textLabel.trailingAnchor, constant: 8),
-            textColorWell.centerYAnchor.constraint(equalTo: textLabel.centerYAnchor),
-            textColorWell.widthAnchor.constraint(equalToConstant: 44),
-            textColorWell.heightAnchor.constraint(equalToConstant: 28),
+            textColorButton.leadingAnchor.constraint(equalTo: textLabel.trailingAnchor, constant: 8),
+            textColorButton.centerYAnchor.constraint(equalTo: textLabel.centerYAnchor),
+            textColorButton.widthAnchor.constraint(equalToConstant: 44),
+            textColorButton.heightAnchor.constraint(equalToConstant: 28),
 
             // Row 3: background color
             bgLabel.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p),
             bgLabel.topAnchor.constraint(equalTo: textLabel.bottomAnchor, constant: rowH),
             bgLabel.widthAnchor.constraint(equalToConstant: labelW),
 
-            bgColorWell.leadingAnchor.constraint(equalTo: bgLabel.trailingAnchor, constant: 8),
-            bgColorWell.centerYAnchor.constraint(equalTo: bgLabel.centerYAnchor),
-            bgColorWell.widthAnchor.constraint(equalToConstant: 44),
-            bgColorWell.heightAnchor.constraint(equalToConstant: 28),
+            bgColorButton.leadingAnchor.constraint(equalTo: bgLabel.trailingAnchor, constant: 8),
+            bgColorButton.centerYAnchor.constraint(equalTo: bgLabel.centerYAnchor),
+            bgColorButton.widthAnchor.constraint(equalToConstant: 44),
+            bgColorButton.heightAnchor.constraint(equalToConstant: 28),
 
             // Row 4: word wrap
             wordWrapCheckbox.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p + labelW + 8),
@@ -173,12 +170,23 @@ final class SettingsPanel: NSWindow {
         return f
     }
 
+    private static func makeColorButton() -> NSButton {
+        let b = NSButton(frame: .zero)
+        b.isBordered = false
+        b.title = ""
+        b.wantsLayer = true
+        b.layer?.cornerRadius = 4
+        b.layer?.borderWidth = 0.5
+        b.layer?.borderColor = NSColor.black.withAlphaComponent(0.3).cgColor
+        return b
+    }
+
     private func loadFromSettings() {
         let s = Settings.shared
         fontSlider.doubleValue = Double(s.fontSize)
         fontValueLabel.stringValue = "\(Int(s.fontSize))pt"
-        textColorWell.color = s.textColor
-        bgColorWell.color = s.backgroundColor
+        textColorButton.layer?.backgroundColor = s.textColor.cgColor
+        bgColorButton.layer?.backgroundColor = s.backgroundColor.cgColor
         wordWrapCheckbox.state = s.wordWrap ? .on : .off
         dismissSlider.doubleValue = s.dismissDelay * 2
         dismissValueLabel.stringValue = Self.formatDelay(s.dismissDelay)
@@ -193,14 +201,22 @@ final class SettingsPanel: NSWindow {
         onChanged?()
     }
 
-    @objc private func textColorChanged() {
-        Settings.shared.textColor = textColorWell.color
-        onChanged?()
+    @objc private func openTextColorPicker() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+        colorPicker.show(from: textColorButton, current: Settings.shared.textColor) { [weak self] c in
+            Settings.shared.textColor = c
+            self?.textColorButton.layer?.backgroundColor = c.cgColor
+            self?.onChanged?()
+        }
     }
 
-    @objc private func bgColorChanged() {
-        Settings.shared.backgroundColor = bgColorWell.color
-        onChanged?()
+    @objc private func openBgColorPicker() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
+        colorPicker.show(from: bgColorButton, current: Settings.shared.backgroundColor) { [weak self] c in
+            Settings.shared.backgroundColor = c
+            self?.bgColorButton.layer?.backgroundColor = c.cgColor
+            self?.onChanged?()
+        }
     }
 
     @objc private func wordWrapChanged() {
@@ -230,11 +246,11 @@ final class SettingsPanel: NSWindow {
         perform(#selector(close), with: nil, afterDelay: Double(Settings.shared.settingsAutoCloseSecs))
     }
 
-    @objc private func colorPanelBecameKey() {
+    func popoverWillShow(_ notification: Notification) {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(close), object: nil)
     }
 
-    @objc private func colorPanelClosed() {
+    func popoverDidClose(_ notification: Notification) {
         guard isVisible else { return }
         makeKeyAndOrderFront(nil)
         scheduleAutoClose()
