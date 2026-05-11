@@ -78,7 +78,7 @@ AppDelegate
         ├── textColor: 色ボタン → ColorPickerPanel (カスタム32色 + hex入力)
         ├── backgroundColor: 色ボタン → ColorPickerPanel
         ├── wordWrap: checkbox
-        ├── dismissDelay: 0.5–5秒 スライダー (0.5秒刻み)
+        ├── dismissDelay: 0.5–5秒 スライダー (0.5秒刻み、デフォルト3秒)
         ├── settingsAutoCloseSecs: 2/4/6/8/10秒 スライダー (デフォルト8秒)
         ├── live preview on change
         │
