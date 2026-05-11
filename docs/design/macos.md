@@ -1,7 +1,7 @@
 # ClipNotice — macOS Design Document
 
 Generated: 2026-05-10 by tobisako (/office-hours Builder Mode)
-Last updated: 2026-05-11
+Last updated: 2026-05-11 (color picker toggle / mouseDown / timer reset / preview fix)
 
 ## Problem
 
@@ -85,7 +85,7 @@ AppDelegate
         │   └── makeKeyAndOrderFront → loadFromSettings → scheduleAutoClose
         │
         ├── 操作時タイマーリセット: fontChanged / wordWrapChanged / dismissChanged / autoCloseChanged
-        │   └── 各ハンドラ末尾で scheduleAutoClose() → 操作のたびにタイマーが延長される
+        │   └── 各ハンドラ末尾で scheduleAutoClose() → スライダー操作・チェックボックス変更でタイマー延長
         │
         ├── timerClose() ← scheduleAutoClose が登録するセレクタ
         │   ├── colorPicker.isVisible == true → return (カラーピッカー中はスキップ)
@@ -100,6 +100,8 @@ AppDelegate
         └── ColorPickerPanel (NSPanel, level: .popUpMenu = 101)
             ├── 設定ウィンドウの右隣に表示 (anchor.frame.maxX + 8)
             ├── 上部タイトルラベル: "文字の色" / "背景の色"（show()のtitle引数で切替）
+            ├── 色ボタンは sendAction(on: .leftMouseDown) → mouseDown 瞬間に開く
+            ├── 色ボタン再押し時: isVisible == true → hide() のみ（トグル閉じ）
             ├── show(positionedRightOf:current:title:) → timerClose キャンセル + orderFront + clickMonitor 開始
             ├── hide() → clickMonitor 停止 + orderOut + onClose?()
             ├── onClose callback → isPerformingClose == false → scheduleAutoClose
@@ -202,10 +204,11 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 
 設定パネルの自動クローズタイマーとカラーピッカーの関係:
 
-1. 色ボタンをクリック → `openTextColorPicker()` / `openBgColorPicker()`
+1. 色ボタン押下（mouseDown）→ `openTextColorPicker()` / `openBgColorPicker()`
+   - ピッカーが既に表示中 → `colorPicker.hide()` のみ（トグル閉じ）、以下スキップ
    - `timerClose` セレクタのペンディングリクエストをキャンセル
    - `colorPicker.show(positionedRightOf: self, current:, title: "文字の色"/"背景の色")` でピッカー表示
-   - ピッカー上部に「文字の色」または「背景の色」のタイトルラベル表示
+   - ピッカー上部にタイトルラベル（「文字の色」または「背景の色」）表示
    - `NSEvent.addLocalMonitorForEvents` でclick-outside監視開始
 2. ピッカーが開いている間に自動クローズタイマーが発火した場合:
    - `timerClose()` 呼ばれる → `colorPicker.isVisible == true` → **return（スキップ）**
