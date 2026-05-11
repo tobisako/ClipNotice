@@ -84,6 +84,9 @@ AppDelegate
         ├── open()
         │   └── makeKeyAndOrderFront → loadFromSettings → scheduleAutoClose
         │
+        ├── 操作時タイマーリセット: fontChanged / wordWrapChanged / dismissChanged / autoCloseChanged
+        │   └── 各ハンドラ末尾で scheduleAutoClose() → 操作のたびにタイマーが延長される
+        │
         ├── timerClose() ← scheduleAutoClose が登録するセレクタ
         │   ├── colorPicker.isVisible == true → return (カラーピッカー中はスキップ)
         │   └── colorPicker.isVisible == false → close()

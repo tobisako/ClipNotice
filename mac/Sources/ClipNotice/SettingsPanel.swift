@@ -208,6 +208,7 @@ final class SettingsPanel: NSWindow {
         Settings.shared.fontSize = size
         fontValueLabel.stringValue = "\(Int(size))pt"
         onChanged?()
+        scheduleAutoClose()
     }
 
     @objc private func openTextColorPicker() {
@@ -217,7 +218,7 @@ final class SettingsPanel: NSWindow {
             self?.textColorButton.layer?.backgroundColor = c.cgColor
             self?.onChanged?()
         }
-        colorPicker.show(positionedRightOf: self, current: Settings.shared.textColor)
+        colorPicker.show(positionedRightOf: self, current: Settings.shared.textColor, title: "文字の色")
     }
 
     @objc private func openBgColorPicker() {
@@ -227,18 +228,20 @@ final class SettingsPanel: NSWindow {
             self?.bgColorButton.layer?.backgroundColor = c.cgColor
             self?.onChanged?()
         }
-        colorPicker.show(positionedRightOf: self, current: Settings.shared.backgroundColor)
+        colorPicker.show(positionedRightOf: self, current: Settings.shared.backgroundColor, title: "背景の色")
     }
 
     @objc private func wordWrapChanged() {
         Settings.shared.wordWrap = wordWrapCheckbox.state == .on
         onChanged?()
+        scheduleAutoClose()
     }
 
     @objc private func dismissChanged() {
         let secs = dismissSlider.doubleValue / 2
         Settings.shared.dismissDelay = secs
         dismissValueLabel.stringValue = Self.formatDelay(secs)
+        scheduleAutoClose()
     }
 
     @objc private func autoCloseChanged() {
