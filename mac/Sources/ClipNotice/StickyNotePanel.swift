@@ -133,12 +133,12 @@ final class StickyNotePanel: NSPanel {
     }
 
     override func mouseDown(with event: NSEvent) {
-        dragStartLocation = event.locationInWindow
+        dragStartLocation = NSEvent.mouseLocation
     }
 
     override func mouseUp(with event: NSEvent) {
         guard let start = dragStartLocation else { return }
-        let d = event.locationInWindow
+        let d = NSEvent.mouseLocation
         if hypot(d.x - start.x, d.y - start.y) < 5 {
             dismissWorkItem?.cancel()
             close()
