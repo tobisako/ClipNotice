@@ -10,7 +10,7 @@ final class SettingsPanel: NSWindow {
     private let textColorWell = NSColorWell()
     private let bgColorWell = NSColorWell()
     private let wordWrapCheckbox = NSButton(checkboxWithTitle: "改行する", target: nil, action: nil)
-    private let dismissSlider = NSSlider(value: 3, minValue: 1, maxValue: 5, target: nil, action: nil)
+    private let dismissSlider = NSSlider(value: 6, minValue: 1, maxValue: 10, target: nil, action: nil)
     private let dismissValueLabel = NSTextField(labelWithString: "3秒")
 
     private init() {
@@ -55,7 +55,7 @@ final class SettingsPanel: NSWindow {
         // --- Dismiss delay row ---
         let dismissLabel = label("表示時間")
         dismissSlider.isContinuous = true
-        dismissSlider.numberOfTickMarks = 5
+        dismissSlider.numberOfTickMarks = 10
         dismissSlider.allowsTickMarkValuesOnly = true
         dismissSlider.target = self
         dismissSlider.action = #selector(dismissChanged)
@@ -138,8 +138,8 @@ final class SettingsPanel: NSWindow {
         textColorWell.color = s.textColor
         bgColorWell.color = s.backgroundColor
         wordWrapCheckbox.state = s.wordWrap ? .on : .off
-        dismissSlider.doubleValue = s.dismissDelay
-        dismissValueLabel.stringValue = "\(Int(s.dismissDelay))秒"
+        dismissSlider.doubleValue = s.dismissDelay * 2
+        dismissValueLabel.stringValue = Self.formatDelay(s.dismissDelay)
     }
 
     @objc private func fontChanged() {
@@ -165,9 +165,13 @@ final class SettingsPanel: NSWindow {
     }
 
     @objc private func dismissChanged() {
-        let v = Int(dismissSlider.doubleValue)
-        Settings.shared.dismissDelay = TimeInterval(v)
-        dismissValueLabel.stringValue = "\(v)秒"
+        let secs = dismissSlider.doubleValue / 2
+        Settings.shared.dismissDelay = secs
+        dismissValueLabel.stringValue = Self.formatDelay(secs)
+    }
+
+    private static func formatDelay(_ secs: TimeInterval) -> String {
+        secs.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(secs))秒" : "\(secs)秒"
     }
 
     func open() {

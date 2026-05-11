@@ -61,12 +61,12 @@ sealed class SettingsForm : Form
         var sliderDismiss = new TrackBar
         {
             Location = new Point(cx, ry + rh * 4), Size = new Size(150, 40),
-            Minimum = 1, Maximum = 5, Value = Settings.DismissMs / 1000,
+            Minimum = 1, Maximum = 10, Value = Settings.DismissMs / 500,
             TickFrequency = 1, SmallChange = 1
         };
         var lblDismissVal = new Label
         {
-            Text = $"{Settings.DismissMs / 1000}秒",
+            Text = FormatDelay(Settings.DismissMs),
             Location = new Point(cx + 158, ry + rh * 4 + 4), AutoSize = true
         };
 
@@ -107,10 +107,13 @@ sealed class SettingsForm : Form
 
         sliderDismiss.ValueChanged += (_, _) =>
         {
-            Settings.DismissMs = sliderDismiss.Value * 1000;
-            lblDismissVal.Text = $"{sliderDismiss.Value}秒";
+            Settings.DismissMs = sliderDismiss.Value * 500;
+            lblDismissVal.Text = FormatDelay(Settings.DismissMs);
         };
 
         Controls.AddRange(new Control[] { lblFont, slider, lblVal, lblTc, btnTc, lblBg, btnBg, chkWrap, lblDismiss, sliderDismiss, lblDismissVal });
     }
+
+    static string FormatDelay(int ms) =>
+        ms % 1000 == 0 ? $"{ms / 1000}秒" : $"{ms / 1000.0:0.#}秒";
 }
