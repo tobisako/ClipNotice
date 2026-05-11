@@ -1,7 +1,7 @@
 # ClipNotice — macOS Design Document
 
 Generated: 2026-05-10 by tobisako (/office-hours Builder Mode)
-Branch: HEAD (new project)
+Last updated: 2026-05-11
 
 ## Problem
 
@@ -17,13 +17,15 @@ ClipNoticeはこれを解消する: コピーした瞬間に内容が見える�
 | クリップボードマネージャー | Maccy, Clipy, Paste | 履歴蓄積+ホットキー呼び出し。能動操作が必要。 |
 | **ClipNotice** | — | コピー即時表示 → 3秒後消去。受動型アンビエント通知。履歴不要。 |
 
-## Core Feature (Phase 1 Confirmed)
+## Core Feature (Implemented)
 
 - クリップボード変化を検知（0.5秒ポーリング）
 - 画面左上に付箋UI表示（コピーした文字列）
-- 3秒後自動消去
+- 表示時間後自動消去（デフォルト3秒、0.5〜5秒で設定可能）
 - クリックで即時消去
+- ドラッグで付箋を移動（位置は次回表示に引き継ぐ）
 - 右クリック → 設定 / Quit メニュー
+- 付箋消滅後もメニューは2秒間維持（メニュー操作中は付箋が先に消える）
 
 ## UI Requirements
 
@@ -41,21 +43,43 @@ AppDelegate
 │   ├── changeCount変化なし → スキップ
 │   └── 変化あり → NSPasteboard.string(forType: .string) → StickyNotePanel.show(text)
 │
-└── StickyNotePanel (NSPanel subclass)
+└── StickyNotePanel (NSPanel, NSMenuDelegate)
     ├── level: .floating
     ├── styleMask: .nonactivatingPanel | .fullSizeContentView
     ├── collectionBehavior: .canJoinAllSpaces | .stationary
-    ├── position: top-left (visibleFrame.minX + 20, visibleFrame.maxY - height - 20)
-    ├── content: NSTextField (最大300文字、wordWrap or clipping)
-    ├── auto-dismiss: DispatchWorkItem after 3.0s
-    ├── mouseDown → cancel work item, close()
+    ├── isMovableByWindowBackground: true  ← AppKitがドラッグ処理
+    │
+    ├── show(text)
+    │   ├── alphaValue = 1, ignoresMouseEvents = false  ← 前回の不可視状態をリセット
+    │   ├── カスタム位置 or デフォルト左上配置
+    │   └── scheduleDismiss()
+    │
+    ├── scheduleDismiss()
+    │   └── DispatchWorkItem after Settings.dismissDelay
+    │       ├── menuIsOpen == false → close()
+    │       └── menuIsOpen == true  → alphaValue=0, ignoresMouseEvents=true
+    │                                  + cancelTracking() after 2s
+    │
+    ├── mouseDown → dismissWorkItem.cancel(), dragStartLocation = NSEvent.mouseLocation
+    ├── mouseUp
+    │   ├── 移動量 < 5px → close()  (クリック判定)
+    │   └── 移動量 ≥ 5px → customOrigin = frame.origin, scheduleDismiss()  (ドラッグ)
+    │
+    ├── NSMenuDelegate
+    │   ├── menuWillOpen → menuIsOpen = true
+    │   └── menuDidClose → menuIsOpen = false
+    │                       alphaValue == 0 なら dismissWorkItem.cancel(), close()
+    │
     ├── rightClick → NSMenu ["設定...", "Quit ClipNotice"]
-    └── SettingsPanel (singleton)
+    │
+    └── SettingsPanel (singleton, level: .modalPanel)
         ├── fontSize: 8–48pt slider
         ├── textColor: NSColorWell
         ├── backgroundColor: NSColorWell
         ├── wordWrap: checkbox
-        └── live preview on change
+        ├── dismissDelay: 0.5–5秒 スライダー (0.5秒刻み)
+        ├── live preview on change
+        └── 開いてから10秒後に自動クローズ
 ```
 
 ## Tech Stack
@@ -100,6 +124,42 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 - メニューバー常駐
 - 複数モニター対応
 
+## Settings Persistence
+
+すべて `UserDefaults.standard` に保存:
+
+| キー | 型 | デフォルト |
+|------|-----|---------|
+| `fontSize` | Double | 13 |
+| `textColor` | Data (NSColor archive) | black |
+| `backgroundColor` | Data (NSColor archive) | 薄黄色 |
+| `wordWrap` | Bool | true |
+| `dismissDelay` | Double | 3.0 |
+
+## Drag-to-Move
+
+- `isMovableByWindowBackground = true` → AppKit が window drag を処理
+- `mouseDown`: `dragStartLocation = NSEvent.mouseLocation`（スクリーン座標）でドラッグ開始記録、タイマーキャンセル
+- `mouseUp`: スクリーン座標で移動量を計算
+  - < 5px → クリック判定 → close()
+  - ≥ 5px → ドラッグ判定 → `customOrigin = frame.origin` 保存、scheduleDismiss()
+- `customOrigin` があれば次回 `show()` でその位置に表示
+
+**注意**: `locationInWindow` はウィンドウ相対座標のため、isMovableByWindowBackground と組み合わせると常にほぼ0になり誤判定する。`NSEvent.mouseLocation`（スクリーン絶対座標）を使う。
+
+## Context Menu Lifetime
+
+右クリックメニュー（設定 / Quit）と付箋の消滅タイミング:
+
+1. dismiss タイマー発火、メニューが**閉じている** → `close()` 通常消滅
+2. dismiss タイマー発火、メニューが**開いている**:
+   - `alphaValue = 0`（付箋を不可視化）
+   - `ignoresMouseEvents = true`（クリック透過）
+   - 2秒後に `cancelTracking()` → メニューが閉じる → `menuDidClose` → `close()`
+3. ユーザーがメニューを手動で閉じた場合（`menuDidClose`、`alphaValue == 0`）:
+   - `dismissWorkItem.cancel()`（cancelTracking予約をキャンセル）
+   - 即座に `close()`
+
 ## Edge Cases Handled
 
 - 長い文字列 → 最大300文字で切り捨て（`…` 付加）
@@ -108,4 +168,6 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 - アプリ起動時の初回changeCount → 初期値として記録、表示しない
 - wordWrap OFF → テキスト幅に合わせてパネル横幅自動拡張（画面幅上限）
 - wordWrap ON → 固定幅320px、折り返し
-- 付箋表示中に新コピー → 古いタイマーキャンセル、新テキスト表示
+- 付箋表示中に新コピー → 古いタイマーキャンセル、新テキスト表示、alphaValue/ignoresMouseEvents リセット
+- ドラッグ中に dismiss タイマー発火 → mouseDown でキャンセル済み → 問題なし
+- 設定パネルが付箋より手前に表示されない → level: .modalPanel（.floatingより上位）で解決
