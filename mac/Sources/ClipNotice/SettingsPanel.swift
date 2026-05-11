@@ -17,7 +17,7 @@ final class SettingsPanel: NSWindow {
 
     private init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 290),
+            contentRect: NSRect(x: 0, y: 0, width: 340, height: 325),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -60,8 +60,14 @@ final class SettingsPanel: NSWindow {
         wordWrapCheckbox.target = self
         wordWrapCheckbox.action = #selector(wordWrapChanged)
 
+        // --- Timer section header ---
+        let timerSectionLabel = NSTextField(labelWithString: "表示時間")
+        timerSectionLabel.alignment = .left
+        timerSectionLabel.textColor = .secondaryLabelColor
+        timerSectionLabel.font = NSFont.systemFont(ofSize: 11)
+
         // --- Dismiss delay row ---
-        let dismissLabel = label("表示時間")
+        let dismissLabel = label("付箋")
         dismissSlider.isContinuous = true
         dismissSlider.numberOfTickMarks = 10
         dismissSlider.allowsTickMarkValuesOnly = true
@@ -70,7 +76,7 @@ final class SettingsPanel: NSWindow {
         dismissValueLabel.alignment = .right
 
         // --- Settings auto-close row ---
-        let autoCloseLabel = label("設定タイマー")
+        let autoCloseLabel = label("設定")
         autoCloseSlider.isContinuous = true
         autoCloseSlider.numberOfTickMarks = 5
         autoCloseSlider.allowsTickMarkValuesOnly = true
@@ -78,7 +84,7 @@ final class SettingsPanel: NSWindow {
         autoCloseSlider.action = #selector(autoCloseChanged)
         autoCloseValueLabel.alignment = .right
 
-        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox, dismissLabel, dismissSlider, dismissValueLabel, autoCloseLabel, autoCloseSlider, autoCloseValueLabel] {
+        for v in [fontLabel, fontSlider, fontValueLabel, textLabel, textColorWell, bgLabel, bgColorWell, wordWrapCheckbox, timerSectionLabel, dismissLabel, dismissSlider, dismissValueLabel, autoCloseLabel, autoCloseSlider, autoCloseValueLabel] {
             v.translatesAutoresizingMaskIntoConstraints = false
             cv.addSubview(v)
         }
@@ -126,9 +132,14 @@ final class SettingsPanel: NSWindow {
             wordWrapCheckbox.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p + labelW + 8),
             wordWrapCheckbox.topAnchor.constraint(equalTo: bgLabel.bottomAnchor, constant: rowH),
 
-            // Row 5: dismiss delay
+            // Section header: 表示時間
+            timerSectionLabel.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p),
+            timerSectionLabel.topAnchor.constraint(equalTo: wordWrapCheckbox.bottomAnchor, constant: rowH),
+            timerSectionLabel.trailingAnchor.constraint(equalTo: cv.trailingAnchor, constant: -p),
+
+            // Row 5: 付箋 dismiss delay
             dismissLabel.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p),
-            dismissLabel.topAnchor.constraint(equalTo: wordWrapCheckbox.bottomAnchor, constant: rowH - 4),
+            dismissLabel.topAnchor.constraint(equalTo: timerSectionLabel.bottomAnchor, constant: 8),
             dismissLabel.widthAnchor.constraint(equalToConstant: labelW),
 
             dismissSlider.leadingAnchor.constraint(equalTo: dismissLabel.trailingAnchor, constant: 8),
@@ -140,9 +151,9 @@ final class SettingsPanel: NSWindow {
             dismissValueLabel.centerYAnchor.constraint(equalTo: dismissSlider.centerYAnchor),
             dismissValueLabel.widthAnchor.constraint(equalToConstant: 42),
 
-            // Row 6: settings auto-close
+            // Row 6: 設定 auto-close
             autoCloseLabel.leadingAnchor.constraint(equalTo: cv.leadingAnchor, constant: p),
-            autoCloseLabel.topAnchor.constraint(equalTo: dismissLabel.bottomAnchor, constant: rowH),
+            autoCloseLabel.topAnchor.constraint(equalTo: dismissLabel.bottomAnchor, constant: rowH - 4),
             autoCloseLabel.widthAnchor.constraint(equalToConstant: labelW),
 
             autoCloseSlider.leadingAnchor.constraint(equalTo: autoCloseLabel.trailingAnchor, constant: 8),
