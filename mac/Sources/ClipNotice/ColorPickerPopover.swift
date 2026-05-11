@@ -30,8 +30,9 @@ final class ColorPickerPanel: NSPanel {
         setContentSize(vc.preferredSize)
     }
 
-    func show(positionedRightOf anchor: NSWindow, current: NSColor) {
+    func show(positionedRightOf anchor: NSWindow, current: NSColor, title: String) {
         guard !isVisible else { return }
+        vc.setTitle(title)
         vc.setInitial(current)
         let size = vc.preferredSize
         let x = anchor.frame.maxX + 8
@@ -64,12 +65,24 @@ final class ColorPickerPanel: NSPanel {
 private final class ColorPickerVC: NSViewController {
     var onSelect: ((NSColor) -> Void)?
 
+    private let titleLabel: NSTextField = {
+        let f = NSTextField(labelWithString: "")
+        f.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        f.textColor = .labelColor
+        f.alignment = .center
+        return f
+    }()
+
     private let hexField: NSTextField = {
         let f = NSTextField()
         f.placeholderString = "#RRGGBB"
         f.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         return f
     }()
+
+    func setTitle(_ text: String) {
+        titleLabel.stringValue = text
+    }
 
     // 4 rows × 8 cols
     static let palette: [[NSColor]] = [
@@ -108,6 +121,9 @@ private final class ColorPickerVC: NSViewController {
          NSColor(red: 1,    green: 0.75, blue: 0.87, alpha: 1)],
     ]
 
+    private static let titleH: CGFloat = 18
+    private static let titleGap: CGFloat = 6
+
     var preferredSize: NSSize {
         let swatchSize: CGFloat = 24
         let gap: CGFloat = 4
@@ -116,7 +132,7 @@ private final class ColorPickerVC: NSViewController {
         let inset: CGFloat = 8
         let width  = inset + CGFloat(cols) * swatchSize + CGFloat(cols - 1) * gap + inset
         let swatchH = CGFloat(rows) * swatchSize + CGFloat(rows - 1) * gap
-        let height = inset + swatchH + gap + 24 + inset
+        let height = inset + Self.titleH + Self.titleGap + swatchH + gap + 24 + inset
         return NSSize(width: width, height: height)
     }
 
@@ -133,14 +149,19 @@ private final class ColorPickerVC: NSViewController {
         let width  = inset + CGFloat(cols) * swatchSize + CGFloat(cols - 1) * gap + inset
         let swatchH = CGFloat(rows) * swatchSize + CGFloat(rows - 1) * gap
         let hexRowH: CGFloat = 24
-        let height = inset + swatchH + gap + hexRowH + inset
+        let height = inset + Self.titleH + Self.titleGap + swatchH + gap + hexRowH + inset
 
         let v = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
         view = v
 
+        // Title label at top
+        titleLabel.frame = NSRect(x: inset, y: height - inset - Self.titleH, width: width - inset * 2, height: Self.titleH)
+        v.addSubview(titleLabel)
+
         // Build swatches (NSView y=0 at bottom)
+        let swatchTop = inset + Self.titleH + Self.titleGap
         for (ri, row) in Self.palette.enumerated() {
-            let yFromTop = inset + CGFloat(ri) * (swatchSize + gap)
+            let yFromTop = swatchTop + CGFloat(ri) * (swatchSize + gap)
             let y = height - yFromTop - swatchSize
             for (ci, color) in row.enumerated() {
                 let x = inset + CGFloat(ci) * (swatchSize + gap)
