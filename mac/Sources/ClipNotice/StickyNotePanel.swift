@@ -131,7 +131,10 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate, NSWindowDelegate {
 
     @objc private func openSettings() {
         SettingsPanel.shared.onChanged = { [weak self] in
-            self?.show(text: "プレビュー Preview\nABC abc 123 あいう")
+            let text = Settings.shared.wordWrap
+                ? "プレビュー Preview\nABC abc 123 あいう"
+                : "プレビュー Preview  ABC abc 123 あいう"
+            self?.show(text: text)
         }
         SettingsPanel.shared.open()
     }

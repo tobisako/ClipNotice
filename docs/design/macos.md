@@ -1,7 +1,7 @@
 # ClipNotice — macOS Design Document
 
 Generated: 2026-05-10 by tobisako (/office-hours Builder Mode)
-Last updated: 2026-05-11 (ColorPickerPanel title追加)
+Last updated: 2026-05-11
 
 ## Problem
 
@@ -225,6 +225,7 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
 - アプリ起動時の初回changeCount → 初期値として記録、表示しない
 - wordWrap OFF → テキスト幅に合わせてパネル横幅自動拡張（画面幅上限）
 - wordWrap ON → 固定幅320px、折り返し
+- 設定プレビュー時のwordWrap OFF → `\n` を含まない1行テキストを使用（`lineBreakMode`は実改行文字を制御しないため）
 - 付箋表示中に新コピー → 古いタイマーキャンセル、新テキスト表示、alphaValue/ignoresMouseEvents リセット
 - ドラッグ中に dismiss タイマー発火 → mouseDown でキャンセル済み → 問題なし
 - 設定パネルが付箋より手前に表示されない → level: .modalPanel（.floatingより上位）で解決
