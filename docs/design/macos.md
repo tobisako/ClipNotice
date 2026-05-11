@@ -92,9 +92,11 @@ AppDelegate
         │   ├── colorPicker.close() (アンカー表示中に閉じる必要あり)
         │   └── super.close()
         │
-        └── ColorPickerPopover (NSPopover, level: modalPanel+1)
+        └── ColorPickerPopover (NSPopover, child window of SettingsPanel)
             ├── 設定ウィンドウの右隣に表示 (preferredEdge: .maxX, anchor: contentView)
             ├── popoverWillShow → timerClose キャンセル (タイマー一時停止)
+            ├── popoverDidShow → addChildWindow(.above) で設定パネルより前面を保証
+            ├── popoverWillClose → removeChildWindow
             └── popoverDidClose → scheduleAutoClose (タイマー再開)
 ```
 
@@ -185,7 +187,8 @@ GitHub Releases バイナリの場合: `xattr -dr com.apple.quarantine ./clipnot
    - `timerClose` セレクタのペンディングリクエストをキャンセル
    - `colorPicker.show()` でピッカー表示
 2. `popoverWillShow` → `timerClose` 追加キャンセル（タイマー完全停止）
-3. `popoverDidShow` → popover window level を `modalPanel+1` に設定（設定パネルより前面）
+3. `popoverDidShow` → `addChildWindow(pickerWindow, ordered: .above)` で設定パネルより前面を保証
+   （`window.level` 設定は NSPopover 内部ウィンドウでは AppKit に上書きされるため無効）
 4. ピッカーが開いている間に自動クローズタイマーが発火した場合:
    - `timerClose()` 呼ばれる → `colorPicker.isShown == true` → **return（スキップ）**
 5. ユーザーがピッカーを閉じる（外側クリック / Escape）:

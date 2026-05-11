@@ -261,8 +261,17 @@ final class SettingsPanel: NSWindow, NSPopoverDelegate {
     }
 
     func popoverDidShow(_ notification: Notification) {
-        // Raise popover window above the settings panel (.modalPanel = level 8)
-        colorPicker.contentViewController?.view.window?.level = NSWindow.Level(rawValue: NSWindow.Level.modalPanel.rawValue + 1)
+        // addChildWindow guarantees the popover appears above its parent regardless of level.
+        // Setting window.level alone does not work on NSPopover's private _NSPopoverWindow.
+        if let pickerWindow = colorPicker.contentViewController?.view.window {
+            addChildWindow(pickerWindow, ordered: .above)
+        }
+    }
+
+    func popoverWillClose(_ notification: Notification) {
+        if let pickerWindow = colorPicker.contentViewController?.view.window {
+            removeChildWindow(pickerWindow)
+        }
     }
 
     func popoverDidClose(_ notification: Notification) {
