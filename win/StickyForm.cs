@@ -50,6 +50,14 @@ sealed class StickyForm : Form
         });
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit ClipNotice", null, (_, _) => Application.Exit());
+        menu.Opened += (_, _) => _timer?.Stop();
+        menu.Closed += (_, _) =>
+        {
+            _timer?.Dispose();
+            _timer = new System.Windows.Forms.Timer { Interval = 2000 };
+            _timer.Tick += (_, _) => { _timer.Stop(); Hide(); };
+            _timer.Start();
+        };
         ContextMenuStrip = menu;
         _label.ContextMenuStrip = menu;
     }

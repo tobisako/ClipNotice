@@ -1,6 +1,6 @@
 import AppKit
 
-final class StickyNotePanel: NSPanel {
+final class StickyNotePanel: NSPanel, NSMenuDelegate {
     private static let dismissDelay: TimeInterval = 3.0  // fallback only
     private static let maxTextLength = 300
     private static let panelWidth: CGFloat = 320
@@ -70,6 +70,7 @@ final class StickyNotePanel: NSPanel {
         let quitItem = NSMenuItem(title: "Quit ClipNotice", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
         menu.addItem(quitItem)
+        menu.delegate = self
         cv.menu = menu
     }
 
@@ -133,6 +134,16 @@ final class StickyNotePanel: NSPanel {
             self?.show(text: "プレビュー Preview\nABC abc 123 あいう")
         }
         SettingsPanel.shared.open()
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        dismissWorkItem?.cancel()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        let work = DispatchWorkItem { [weak self] in self?.close() }
+        dismissWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
     override func mouseDown(with event: NSEvent) {
