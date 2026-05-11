@@ -1,6 +1,6 @@
 import AppKit
 
-final class StickyNotePanel: NSPanel, NSMenuDelegate {
+final class StickyNotePanel: NSPanel, NSMenuDelegate, NSWindowDelegate {
     private static let dismissDelay: TimeInterval = 3.0  // fallback only
     private static let maxTextLength = 300
     private static let panelWidth: CGFloat = 320
@@ -9,9 +9,10 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate {
 
     private var dismissWorkItem: DispatchWorkItem?
     private let label: NSTextField
-    private var dragStartLocation: NSPoint?
     private var customOrigin: NSPoint?
     private var menuIsOpen = false
+    private var mouseDownReceived = false
+    private var wasDrag = false
 
     override init(
         contentRect: NSRect,
@@ -39,6 +40,7 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate {
         isOpaque = false
         level = .floating
         isMovableByWindowBackground = true
+        delegate = self
         hasShadow = true
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
@@ -165,20 +167,26 @@ final class StickyNotePanel: NSPanel, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + Settings.shared.dismissDelay, execute: work)
     }
 
+    func windowDidMove(_ notification: Notification) {
+        if mouseDownReceived {
+            wasDrag = true
+            customOrigin = frame.origin
+        }
+    }
+
     override func mouseDown(with event: NSEvent) {
         dismissWorkItem?.cancel()
-        dragStartLocation = NSEvent.mouseLocation
+        mouseDownReceived = true
+        wasDrag = false
     }
 
     override func mouseUp(with event: NSEvent) {
-        guard let start = dragStartLocation else { return }
-        let d = NSEvent.mouseLocation
-        if hypot(d.x - start.x, d.y - start.y) < 5 {
-            close()
-        } else {
-            customOrigin = frame.origin
+        guard mouseDownReceived else { return }
+        defer { mouseDownReceived = false; wasDrag = false }
+        if wasDrag {
             scheduleDismiss()
+        } else {
+            close()
         }
-        dragStartLocation = nil
     }
 }
