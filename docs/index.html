@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipNotice — コピーした内容が、付箋で3秒出る</title>
+<meta name="description" content="コピーした瞬間、画面の隅に付箋がパッと出て3秒で消える。履歴は持たない。Dock もメニューバーも出さない、macOS / Windows の常駐ユーティリティ。MIT ライセンス。">
+<meta property="og:title" content="ClipNotice — コピーした内容が、付箋で3秒出る">
+<meta property="og:description" content="履歴は持たない。Dock もメニューバーも出さない常駐ユーティリティ。macOS と Windows。MIT。">
+<meta property="og:image" content="https://tobisako.github.io/ClipNotice/assets/sticky-note-bg.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+
+<style>
+/* ===== Retro Zine design tokens =====
+   80-90s の自主制作ミニコミ／コピー機zine。リソグラフ2色＋黒、紙のノイズ、
+   局所ハーフトーン、硬い影、1-2°の回転、版ズレ。全面エフェクトはかけない。 */
+:root{
+  --paper:#F4EFE2;
+  --paper-d:#E8E0CD;
+  --ink:#141414;
+  --ink-2:#4A463C;
+  --pink:#FF4A6E;
+  --blue:#3D5AFE;
+  --yellow:#F5F0A9;   /* 実物の付箋のデフォルト背景色 */
+  --bd:3px solid var(--ink);
+  --sh:7px 7px 0 var(--ink);
+  --sh-sm:4px 4px 0 var(--ink);
+  --df:"Anton","Noto Sans JP",sans-serif;
+  --jf:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  --mf:"Space Mono","SFMono-Regular",monospace;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+/* grid/flex の子は既定 min-width:auto。折り返さない pre や表に引っ張られて
+   トラックがコンテナより太る（狭い画面で横スクロールが出る）ので 0 に落とす。 */
+.split>*, .inst>*, .flow>*, .vs>*, .hero-grid>*, .imprint>*{min-width:0;}
+body{
+  margin:0;
+  color:var(--ink);
+  background-color:var(--paper);
+  /* 紙のノイズ（薄め。全面にうっすら乗せるだけ） */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.13'/%3E%3C/svg%3E");
+  font-family:var(--jf);
+  font-size:18px;
+  line-height:1.85;
+  font-feature-settings:"palt" 1;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+img{max-width:100%; display:block;}
+a{color:inherit;}
+.wrap{max-width:1060px; margin:0 auto; padding:0 24px;}
+
+/* ===== 局所ハーフトーン =====
+   要素自身の background に焼く。オーバーレイ（::before）にすると、
+   transform を持つ子要素だけがドットの上に来て、乗り方が揃わない。 */
+.halftone{
+  background-image:radial-gradient(rgba(20,20,20,.15) 1.1px, transparent 1.2px);
+  background-size:7px 7px;
+}
+.halftone-lt{  /* 暗い面には明るいドットを乗せる */
+  background-image:radial-gradient(rgba(244,239,226,.16) 1.1px, transparent 1.2px);
+  background-size:7px 7px;
+}
+
+/* ===== 版ズレ（見出しにだけ） ===== */
+.misreg{
+  text-shadow:3px 3px 0 var(--pink), -2px -2px 0 var(--blue);
+}
+
+/* ===== マスキングテープ ===== */
+.tape{
+  position:absolute; z-index:3;
+  width:132px; height:34px;
+  background:rgba(245,240,169,.82);
+  border-left:1px dashed rgba(20,20,20,.28);
+  border-right:1px dashed rgba(20,20,20,.28);
+  box-shadow:0 1px 0 rgba(20,20,20,.18);
+}
+
+/* ===== header ===== */
+header{
+  position:sticky; top:0; z-index:60;
+  background:var(--paper); border-bottom:var(--bd);
+}
+.nav{max-width:1060px; margin:0 auto; padding:11px 24px; display:flex; align-items:center; gap:16px;}
+.brand{
+  font-family:var(--df); font-size:26px; letter-spacing:.02em;
+  text-decoration:none; display:flex; align-items:center; gap:9px;
+}
+.brand .dot{width:14px; height:14px; background:var(--pink); border:2px solid var(--ink); border-radius:50%;}
+.nav ul{margin:0 0 0 auto; padding:0; list-style:none; display:flex; gap:20px; align-items:center;}
+.nav a{font-family:var(--mf); font-size:14px; font-weight:700; text-decoration:none; text-transform:uppercase; letter-spacing:.06em; padding:3px 0; border-bottom:3px solid transparent;}
+.nav a:hover{border-bottom-color:var(--pink);}
+@media(max-width:680px){
+  .nav{flex-wrap:wrap; gap:6px 14px; padding:10px 20px 12px;}
+  .nav ul{margin-left:0; width:100%; justify-content:space-between; gap:8px;}
+  .nav a{font-size:13px;}
+  .brand{font-size:22px;}
+}
+
+/* ===== 共通セクション ===== */
+section{padding:74px 0; border-bottom:3px solid var(--ink);}
+.kicker{
+  font-family:var(--mf); font-size:14px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.16em; color:var(--ink);
+  display:inline-block; padding:4px 11px; border:2px solid var(--ink);
+  background:var(--paper); margin-bottom:18px;
+}
+h2{
+  font-family:var(--jf); font-weight:900; font-size:clamp(27px, 7vw, 36px); line-height:1.3;
+  margin:0 0 16px; letter-spacing:-.01em;
+}
+.lede{font-size:21px; line-height:1.8; margin:0 0 34px; max-width:52em;}
+.note{font-size:16px; color:var(--ink-2); line-height:1.75;}
+
+/* ===== hero ===== */
+.hero{padding:70px 0 78px; position:relative; overflow:hidden;}
+.hero-grid{display:grid; grid-template-columns:1.08fr .92fr; gap:52px; align-items:center;}
+.hero h1{
+  font-family:var(--jf); font-weight:900;
+  font-size:56px; line-height:1.24; letter-spacing:-.02em;
+  margin:0 0 22px;
+}
+.hero h1 .hl{
+  background:linear-gradient(transparent 62%, var(--yellow) 62%);
+  box-shadow:none;
+}
+.hero .lede{font-size:21px; margin-bottom:14px;}
+.hero .meta{font-family:var(--mf); font-size:16px; letter-spacing:.04em; color:var(--ink-2); margin:0 0 30px;}
+.cta{display:flex; gap:15px; flex-wrap:wrap;}
+.btn{
+  font-family:var(--jf); font-weight:900; font-size:18px;
+  text-decoration:none; padding:14px 24px;
+  border:var(--bd); box-shadow:var(--sh-sm); background:var(--paper);
+  display:inline-flex; align-items:center; gap:9px;
+  transition:transform .08s, box-shadow .08s;
+}
+.btn:hover{transform:translate(2px,2px); box-shadow:2px 2px 0 var(--ink);}
+.btn.pink{background:var(--pink); color:#fff;}
+.btn.blue{background:var(--blue); color:#fff;}
+.cta-note{margin:16px 0 0; max-width:34em;}
+
+/* hero 右：付箋スクショをテープ留め */
+.shot{position:relative; transform:rotate(-1.6deg);}
+.shot img{border:var(--bd); box-shadow:var(--sh);}
+.shot .tape{top:-16px; left:50%; margin-left:-66px; transform:rotate(-2.5deg);}
+.hand{
+  font-family:var(--mf); font-size:16px; font-weight:700; color:var(--pink);
+  transform:rotate(-3deg); margin-top:16px; text-align:right;
+}
+@media(max-width:880px){
+  .hero-grid{grid-template-columns:1fr; gap:40px;}
+  .hero h1{font-size:clamp(31px, 8.4vw, 44px);}
+}
+
+/* ===== 見開きイラスト（zineの刷版）=====
+   クロップすると主役の付箋か手のどちらかが切れるので、絵は切らずに版ごと置く。 */
+.spread{margin:0; padding:52px 24px 58px; border-bottom:3px solid var(--ink); background-color:var(--paper);}
+.plate{position:relative; max-width:900px; margin:0 auto; transform:rotate(-.7deg);}
+.plate img{width:100%; height:auto; border:var(--bd); box-shadow:var(--sh);}
+.plate .tape{top:-17px; left:50%; margin-left:-66px; transform:rotate(2deg);}
+.spread figcaption{
+  position:absolute; right:-8px; bottom:-19px; z-index:4;
+  font-family:var(--mf); font-size:14px; font-weight:700; color:var(--ink);
+  background:var(--yellow); border:2px solid var(--ink);
+  padding:6px 13px; transform:rotate(-1.6deg);
+}
+@media(max-width:680px){
+  .spread{padding:36px 20px 42px;}
+  .plate{transform:none;}
+  .spread figcaption{position:static; display:inline-block; margin-top:14px; transform:none;}
+}
+
+/* ===== 「それだけ」宣言 ===== */
+.only{background-color:var(--ink); color:var(--paper); text-align:center; border-bottom:none;}
+.only .big{
+  font-family:var(--jf); font-weight:900; font-size:clamp(46px, 13vw, 76px); line-height:1.1;
+  margin:0 0 8px; letter-spacing:.02em;
+  text-shadow:4px 4px 0 var(--pink), -3px -3px 0 var(--blue);
+}
+.only p{font-size:21px; margin:0 auto; max-width:40em; color:var(--paper);}
+.flow{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:20px;
+  max-width:900px; margin:46px auto 0; text-align:left;
+}
+.step{
+  background:var(--paper); color:var(--ink);
+  border:3px solid var(--paper); box-shadow:6px 6px 0 var(--pink);
+  padding:22px 20px;
+}
+.step:nth-child(2){box-shadow:6px 6px 0 var(--blue); transform:rotate(-1deg);}
+.step:nth-child(3){box-shadow:6px 6px 0 var(--paper-d); transform:rotate(.8deg);}
+.step .n{font-family:var(--df); font-size:34px; line-height:1; color:var(--pink);}
+.step:nth-child(2) .n{color:var(--blue);}
+.step h3{font-size:20px; font-weight:900; margin:8px 0 6px;}
+.step p{font-size:18px; color:var(--ink-2); margin:0;}
+@media(max-width:760px){ .flow{grid-template-columns:1fr;}  }
+
+/* ===== デモ ===== */
+.demo-box{
+  border:var(--bd); box-shadow:var(--sh); background:var(--paper-d);
+  padding:0; overflow:hidden; max-width:820px; margin:0 auto;
+}
+.demo-bar{
+  background:var(--ink); color:var(--paper); padding:11px 16px;
+  font-family:var(--mf); font-size:13px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  display:flex; align-items:center; gap:9px;
+}
+.demo-bar .led{width:10px; height:10px; border-radius:50%; background:var(--pink);}
+.demo-screen{
+  position:relative; height:290px; padding:18px;
+  background-color:var(--paper-d);
+  background-image:
+    radial-gradient(rgba(20,20,20,.15) 1.1px, transparent 1.2px),
+    repeating-linear-gradient(45deg, rgba(61,90,254,.07) 0 12px, transparent 12px 24px);
+  background-size:7px 7px, auto;
+}
+.demo-sticky{
+  position:absolute; top:18px; left:18px; max-width:74%;
+  background:var(--yellow); color:#000;
+  border:1px solid rgba(0,0,0,.55); box-shadow:3px 3px 6px rgba(0,0,0,.3);
+  padding:9px 13px; font-size:20px; line-height:1.4;
+  font-family:var(--jf); white-space:pre-wrap; word-break:break-word;
+  opacity:0; transform:scale(.94); pointer-events:none;
+  transition:opacity .12s ease-out, transform .12s ease-out;
+}
+.demo-sticky.on{opacity:1; transform:scale(1); pointer-events:auto; cursor:pointer;}
+.demo-ctl{
+  display:flex; gap:12px; padding:18px; border-top:3px solid var(--ink);
+  background:var(--paper); flex-wrap:wrap;
+}
+.demo-ctl input{
+  flex:1; min-width:220px; font-family:var(--jf); font-size:18px;
+  padding:11px 13px; border:2px solid var(--ink); background:#fff; color:var(--ink);
+}
+.demo-ctl button{
+  font-family:var(--jf); font-weight:900; font-size:18px; cursor:pointer;
+  padding:11px 26px; border:2px solid var(--ink); background:var(--pink); color:#fff;
+  box-shadow:var(--sh-sm); transition:transform .08s, box-shadow .08s;
+}
+.demo-ctl button:hover{transform:translate(2px,2px); box-shadow:2px 2px 0 var(--ink);}
+.demo-hint{
+  position:absolute; right:18px; bottom:14px;
+  font-family:var(--mf); font-size:13px; color:var(--ink-2); text-align:right;
+}
+
+/* ===== 2カラム（イラスト＋本文） ===== */
+.split{display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center;}
+.split.rev .art{order:2;}
+.art{position:relative;}
+.art img{border:var(--bd); box-shadow:var(--sh); background:#fff;}
+.art.tilt{transform:rotate(-1.2deg);}
+.art.tilt-r{transform:rotate(1.2deg);}
+@media(max-width:880px){ .split{grid-template-columns:1fr; gap:34px;} .split.rev .art{order:0;} }
+
+/* ===== 対比（保存しない） ===== */
+.vs{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:8px;}
+.vs div{border:var(--bd); padding:18px 20px; background:var(--paper);}
+.vs .them{box-shadow:var(--sh-sm);}
+.vs .us{background:var(--yellow); box-shadow:var(--sh-sm); transform:rotate(-.8deg);}
+.vs h4{font-family:var(--mf); font-size:14px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin:0 0 10px; color:var(--ink-2);}
+.vs ul{margin:0; padding-left:1.15em;}
+.vs li{font-size:18px; margin-bottom:5px;}
+@media(max-width:680px){ .vs{grid-template-columns:1fr;} }
+
+/* ===== テーブル ===== */
+.tbl{width:100%; border-collapse:collapse; border:var(--bd); background:var(--paper); box-shadow:var(--sh-sm);}
+.tbl th, .tbl td{border:2px solid var(--ink); padding:12px 15px; text-align:left; font-size:18px; vertical-align:top;}
+.tbl thead th{background:var(--ink); color:var(--paper); font-family:var(--mf); font-size:14px; letter-spacing:.08em; text-transform:uppercase;}
+.tbl tbody th{background:var(--paper-d); font-weight:700; white-space:nowrap;}
+.tbl td code{font-family:var(--mf); font-size:16px;}
+.tbl-scroll{overflow-x:auto;}
+
+/* ===== コード ===== */
+pre{
+  margin:0 0 14px; padding:16px 18px; overflow-x:auto;
+  background:var(--ink); color:var(--paper);
+  border:var(--bd); box-shadow:var(--sh-sm);
+  font-family:var(--mf); font-size:16px; line-height:1.7;
+}
+pre .c{color:#9d9789;}
+code{font-family:var(--mf);}
+
+/* ===== install ===== */
+.inst{display:grid; grid-template-columns:1fr 1fr; gap:40px;}
+.inst h3{
+  font-family:var(--jf); font-weight:900; font-size:26px; margin:0 0 6px;
+  display:flex; align-items:center; gap:10px;
+}
+.inst h3 .os{
+  font-family:var(--mf); font-size:13px; font-weight:700; letter-spacing:.08em;
+  border:2px solid var(--ink); padding:2px 9px; background:var(--yellow);
+}
+.inst h4{font-size:18px; font-weight:900; margin:22px 0 8px;}
+@media(max-width:880px){ .inst{grid-template-columns:1fr; gap:44px;} }
+
+/* ===== 奥付 ===== */
+.colophon{background-color:var(--ink); color:var(--paper); border-bottom:none;}
+.colophon h2{color:var(--paper);}
+.colophon .kicker{color:var(--paper); border-color:var(--paper); background:transparent;}
+.log{border-left:3px solid var(--pink); padding-left:22px; margin:0 0 34px;}
+.log li{list-style:none; margin-bottom:20px; position:relative;}
+.log ul{margin:0; padding:0;}
+.log .v{font-family:var(--df); font-size:24px; color:var(--yellow); letter-spacing:.03em;}
+.log .d{font-family:var(--mf); font-size:14px; color:#9d9789; margin-left:10px;}
+.log p{margin:2px 0 0; font-size:18px; color:var(--paper);}
+.imprint{
+  border:3px solid var(--paper); padding:24px 26px; background:transparent;
+  display:grid; grid-template-columns:auto 1fr; gap:10px 22px; align-items:baseline;
+}
+.imprint dt{font-family:var(--mf); font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:#9d9789;}
+.imprint dd{margin:0; font-size:18px; overflow-wrap:anywhere;}  /* 長いURLを折り返す */
+.imprint a{color:var(--yellow);}
+footer{background:var(--ink); color:#9d9789; padding:26px 0 40px; text-align:center; font-family:var(--mf); font-size:13px; letter-spacing:.05em;}
+@media(max-width:560px){ .imprint{grid-template-columns:1fr; gap:2px 0;} .imprint dd{margin-bottom:12px;} }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="nav wrap">
+    <a class="brand" href="#top"><span class="dot"></span>ClipNotice</a>
+    <ul>
+      <li><a href="#demo">Demo</a></li>
+      <li><a href="#diff">Not a Manager</a></li>
+      <li><a href="#remote">Remote</a></li>
+      <li><a href="#spec">Spec</a></li>
+      <li><a href="#install">Install</a></li>
+    </ul>
+  </nav>
+</header>
+
+<!-- ============ 表紙（定義） ============ -->
+<section class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="kicker">macOS &amp; Windows / MIT</span>
+      <h1>コピーした内容が、<br><span class="hl">付箋で3秒</span>出る。</h1>
+      <p class="lede">履歴は持たない。Dock もメニューバーも出さない、常駐ユーティリティ。<br>コピーの確認のためにペーストしてみる必要が、もうない。</p>
+      <p class="meta">Swift + AppKit / C# + WinForms — 保存するものは、何もない。</p>
+      <div class="cta">
+        <a class="btn pink" href="#install">Homebrew で入れる</a>
+        <a class="btn blue" href="https://github.com/tobisako/ClipNotice/releases/latest/download/clipnotice.exe">EXE をダウンロード</a>
+      </div>
+      <p class="note cta-note">macOS 13+（Homebrew はソースビルド・要 Xcode）／ Windows 10・11（EXE、.NET 同梱で追加インストール不要）</p>
+    </div>
+    <div>
+      <div class="shot">
+        <span class="tape"></span>
+        <img src="assets/sticky-note-bg.png" alt="コピーした瞬間に画面の隅に表示される黄色い付箋。「会議メモをコピー ✓」と書かれている">
+      </div>
+      <p class="hand">↑ これが3秒で消える。それだけ。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 見開きイラスト ============ -->
+<figure class="spread">
+  <div class="plate">
+    <span class="tape"></span>
+    <img src="assets/zine-hero.png" alt="キーボードでコピーした瞬間、モニタの左上から付箋が飛び出しているイラスト">
+    <figcaption>コピーした。→ 出た。</figcaption>
+  </div>
+</figure>
+
+<!-- ============ 「それだけ」宣言 ============ -->
+<section class="only halftone-lt">
+  <div class="wrap">
+    <p class="big">それだけ。</p>
+    <p>コピーを検知して、付箋を出して、消す。ClipNotice がするのはこれだけです。</p>
+    <div class="flow">
+      <div class="step">
+        <div class="n">01</div>
+        <h3>コピーする</h3>
+        <p>0.5秒ごとにクリップボードの変化を見ています。文字列だけが対象。</p>
+      </div>
+      <div class="step">
+        <div class="n">02</div>
+        <h3>左上に付箋が出る</h3>
+        <p>コピーした中身がそのまま出ます。300文字まで。</p>
+      </div>
+      <div class="step">
+        <div class="n">03</div>
+        <h3>3秒で消える</h3>
+        <p>放っておけば勝手に消えます。待てないならクリックで即消去。標準は3秒（変更は Windows 版の設定から）。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ デモ ============ -->
+<section id="demo">
+  <div class="wrap">
+    <span class="kicker">Demo</span>
+    <h2>押すと、出ます。</h2>
+    <p class="lede">付箋の見た目と消え方を、このページ上で再現したものです。コピー → 左上に付箋 → 3秒で消える。付箋をクリックすれば即座に消えます。クリップボードの監視までは再現していません。</p>
+    <div class="demo-box">
+      <div class="demo-bar"><span class="led"></span>Simulation — ブラウザ上の再現</div>
+      <div class="demo-screen">
+        <div class="demo-sticky" id="demoSticky"></div>
+        <div class="demo-hint">付箋をクリック → 即消去</div>
+      </div>
+      <div class="demo-ctl">
+        <input id="demoText" type="text" value="会議メモをコピー ✓" aria-label="コピーする文字列" maxlength="300">
+        <button id="demoCopy" type="button">コピー</button>
+      </div>
+    </div>
+    <p class="note" style="text-align:center; margin-top:18px;">※ ボタンを押すと、この文字列は実際にあなたのクリップボードにもコピーされます。<br>ClipNotice を入れていれば、ブラウザの外の「本物」も同時に出ます。</p>
+  </div>
+</section>
+
+<!-- ============ マネージャとの差分 ============ -->
+<section id="diff">
+  <div class="wrap split">
+    <div class="art tilt"><img src="assets/zine-nostore.png" alt="空っぽの引き出しと、消えていく付箋のイラスト"></div>
+    <div>
+      <span class="kicker">Not a clipboard manager</span>
+      <h2>何も、保存しません。</h2>
+      <p class="lede">Maccy・Clipy・Paste のようなクリップボードマネージャとは別のものです。ClipNotice は履歴を持ちません。呼び出すホットキーもありません。出て、消えるだけです。</p>
+      <div class="vs">
+        <div class="them">
+          <h4>Clipboard manager</h4>
+          <ul>
+            <li>履歴を保存する</li>
+            <li>ホットキーで呼び出す</li>
+            <li>過去のコピーを探して貼る</li>
+          </ul>
+        </div>
+        <div class="us">
+          <h4>ClipNotice</h4>
+          <ul>
+            <li>何も保存しない</li>
+            <li>ホットキーなし</li>
+            <li>受動的に、出て、消える</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ リモートデスクトップ場面 ============ -->
+<section id="remote">
+  <div class="wrap split rev">
+    <div class="art tilt-r"><img src="assets/zine-remote.png" alt="2台のモニタが結び目のあるケーブルでつながれ、左のモニタにだけ付箋が出ているイラスト"></div>
+    <div>
+      <span class="kicker">Remote desktop</span>
+      <h2>どっちのPCに届いたか、<br>画面を見れば分かる。</h2>
+      <p class="lede">ネットワークが詰まっているとき、コピーが相手のPCに届いていないことがあります。届いたと思ってペーストしたら空振り——PowerShell や iTerm2 でコマンドを貼っているときの、あれです。</p>
+      <p class="lede" style="margin-bottom:0;">ClipNotice なら、<strong>どちらのPC画面に付箋が出たか</strong>で「届いた／届いていない」が一目で分かります。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 操作・設定 ============ -->
+<section id="settings">
+  <div class="wrap split">
+    <div class="art tilt"><img src="assets/settings-panel.png" alt="ClipNotice の設定パネル。文字サイズのスライダー、文字の色と背景の色のカラーピッカー、改行するのチェックボックスが並んでいる"></div>
+    <div>
+      <span class="kicker">Usage &amp; Settings</span>
+      <h2>操作は3つだけ。</h2>
+      <pre>コピー    <span class="c">→ 付箋表示（初期位置は左上）→ 自動消去（標準3秒）</span>
+クリック  <span class="c">→ 即時消去</span>
+右クリック <span class="c">→ 設定 / Quit ClipNotice</span></pre>
+      <p class="note" style="margin-bottom:22px;">Dock アイコンもメニューバーアイコンも出ないので、終了も設定も付箋の右クリックから行います。Windows 版では付箋をドラッグで動かせて、その位置が次回の表示に引き継がれます。</p>
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th>設定</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><th>文字サイズ</th><td>8〜48pt スライダー</td></tr>
+          <tr><th>文字の色</th><td>カラーピッカー（32色スウォッチ＋<code>#RRGGBB</code> 入力）</td></tr>
+          <tr><th>背景の色</th><td>カラーピッカー（デフォルト: 黄色）</td></tr>
+          <tr><th>改行する</th><td>長文の折り返し on / off</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note" style="margin-top:14px;">設定はリアルタイムプレビュー付き。いじった瞬間に付箋の見た目が変わります。</p>
+      <p class="note" style="margin-top:10px;">上の4項目は mac / win 共通。このほかに <strong>表示時間スライダー（0.5〜5秒、デフォルト3秒）</strong>・<strong>設定パネルの自動クローズ（2/4/6/8/10秒、デフォルト8秒）</strong>・<strong>付箋のドラッグ移動</strong>が Windows 版に入っています。<br>出典: <a href="https://github.com/tobisako/ClipNotice/blob/master/README.md">README</a>（設定表）／ <a href="https://github.com/tobisako/ClipNotice/blob/master/CHANGELOG.md">CHANGELOG 0.3.1</a>（Windows 追加分）</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ スペック ============ -->
+<section id="spec">
+  <div class="wrap">
+    <span class="kicker">Spec</span>
+    <h2>中身</h2>
+    <p class="lede">0.5秒ごとにクリップボードの変化を見て、変わっていたら付箋を出す。対象は文字列のみ、300文字まで。</p>
+    <div class="tbl-scroll">
+    <table class="tbl">
+      <thead><tr><th>項目</th><th>macOS</th><th>Windows</th></tr></thead>
+      <tbody>
+        <tr><th>言語</th><td>Swift 5.9</td><td>C# / .NET 9</td></tr>
+        <tr><th>UI</th><td>AppKit <code>NSPanel</code></td><td>WinForms</td></tr>
+        <tr><th>検知</th><td><code>NSPasteboard.changeCount</code> ポーリング</td><td>Clipboard API ポーリング</td></tr>
+        <tr><th>ポーリング間隔</th><td>0.5秒</td><td>0.5秒</td></tr>
+        <tr><th>テキスト上限</th><td>300文字</td><td>300文字</td></tr>
+        <tr><th>対象</th><td>文字列のみ</td><td>文字列のみ</td></tr>
+        <tr><th>OS</th><td>macOS 13+</td><td>Windows 10/11 (64-bit)</td></tr>
+        <tr><th>配布</th><td>Homebrew（ソースビルド）</td><td>GitHub Releases（EXE）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note" style="margin-top:16px;">出典: <a href="https://github.com/tobisako/ClipNotice/blob/master/README.md">ClipNotice README</a>（リポジトリ内 Specs 表）</p>
+  </div>
+</section>
+
+<!-- ============ 入れ方 ============ -->
+<section id="install">
+  <div class="wrap">
+    <span class="kicker">Install</span>
+    <h2>入れ方</h2>
+    <div class="inst">
+      <div>
+        <h3>macOS <span class="os">13+</span></h3>
+        <h4>Homebrew（推奨）</h4>
+<pre>brew tap tobisako/clipnotice
+brew install clipnotice
+clipnotice &amp;</pre>
+        <p class="note">Homebrew 版はソースからビルドされます。Xcode が必要です。</p>
+        <h4>ソースからビルド</h4>
+<pre>git clone https://github.com/tobisako/ClipNotice.git
+cd ClipNotice/mac
+bash build.sh release
+.build/release/clipnotice &amp;</pre>
+        <h4>ログイン時に自動起動</h4>
+        <p class="note">システム設定 → 一般 → ログイン項目 → 「＋」 で実行ファイルを追加します。ソースからビルドした場合は <code>.build/release/clipnotice</code>。Homebrew で入れた場合は <code>which clipnotice</code> で出たパスを指定してください。</p>
+      </div>
+      <div>
+        <h3>Windows <span class="os">10 / 11</span></h3>
+        <h4>EXE をダウンロード</h4>
+        <p class="note" style="margin-bottom:12px;"><a href="https://github.com/tobisako/ClipNotice/releases/latest/download/clipnotice.exe"><strong>clipnotice.exe</strong></a> をダウンロードして起動するだけ。.NET ランタイムは EXE に同梱（self-contained）なので、別途インストールは不要です。</p>
+        <h4>SmartScreen 警告が出たら</h4>
+        <p class="note" style="margin-bottom:12px;">「詳細情報」→「実行」。署名なし配布のために出る Windows の警告です。コードは <a href="https://github.com/tobisako/ClipNotice/tree/master/win">オープンソース</a>です。</p>
+        <h4>ソースからビルド</h4>
+<pre>git clone https://github.com/tobisako/ClipNotice.git
+cd ClipNotice/win
+dotnet publish -c Release -r win-x64 `
+  --self-contained true -p:PublishSingleFile=true</pre>
+        <p class="note">.NET 9 SDK が必要です。</p>
+        <h4>ログイン時に自動起動</h4>
+        <p class="note"><code>Win+R</code> → <code>shell:startup</code> → <code>clipnotice.exe</code> のショートカットを配置。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 奥付 ============ -->
+<section class="colophon halftone-lt" id="colophon">
+  <div class="wrap">
+    <span class="kicker">Colophon</span>
+    <h2>奥付</h2>
+    <div class="log">
+      <ul>
+        <li><span class="v">0.3.1</span><span class="d">2026-05-11</span>
+          <p>自前のカラーピッカー（32色スウォッチ＋hex入力）を mac / win 両方に。付箋のドラッグ移動、表示時間スライダー、設定パネルの自動クローズを Windows に追加。</p></li>
+        <li><span class="v">0.3.0</span><span class="d">2026-05-10</span>
+          <p>Windows 対応（C# / WinForms）。GitHub Actions で EXE を自動ビルドしてリリースに添付。<code>mac/</code> と <code>win/</code> の monorepo 構成に。</p></li>
+        <li><span class="v">0.2.0</span><span class="d">2026-05-10</span>
+          <p>設定パネル（文字サイズ・文字色・背景色・改行トグル）をリアルタイムプレビュー付きで追加。</p></li>
+        <li><span class="v">0.1.0</span><span class="d">2026-05-10</span>
+          <p>初回リリース。macOS のみ。付箋表示・3秒で自動消去・クリックで消去・右クリックで Quit。Dock / メニューバーアイコンなし。</p></li>
+      </ul>
+    </div>
+    <dl class="imprint">
+      <dt>Version</dt><dd>0.3.1（2026-05-11）</dd>
+      <dt>Repository</dt><dd><a href="https://github.com/tobisako/ClipNotice">github.com/tobisako/ClipNotice</a></dd>
+      <dt>License</dt><dd>MIT</dd>
+      <dt>Source</dt><dd>mac/ — Swift + AppKit ／ win/ — C# + WinForms</dd>
+      <dt>Changelog</dt><dd><a href="https://github.com/tobisako/ClipNotice/blob/master/CHANGELOG.md">CHANGELOG.md</a>（Keep a Changelog 形式）</dd>
+      <dt>Releases</dt><dd><a href="https://github.com/tobisako/ClipNotice/releases">github.com/tobisako/ClipNotice/releases</a></dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  ClipNotice — MIT License. Copy, and it shows up. That's all.
+</footer>
+
+<script>
+(function(){
+  var sticky = document.getElementById('demoSticky');
+  var input  = document.getElementById('demoText');
+  var btn    = document.getElementById('demoCopy');
+  var timer  = null;
+
+  function hide(){
+    sticky.classList.remove('on');
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+
+  function show(text){
+    sticky.textContent = text.slice(0, 300);   // 実物と同じ 300文字上限
+    sticky.classList.add('on');
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(hide, 3000);            // 実物と同じ 3秒で自動消去
+  }
+
+  btn.addEventListener('click', function(){
+    var t = input.value;
+    if (!t.trim()) return;
+    // 実物と同じく「文字列がコピーされたら出る」。クリップボードにも実際に載せる。
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).catch(function(){ /* 権限が無くてもデモは動かす */ });
+    }
+    show(t);
+  });
+
+  sticky.addEventListener('click', hide);      // 実物と同じくクリックで即時消去
+})();
+</script>
+
+</body>
+</html>
